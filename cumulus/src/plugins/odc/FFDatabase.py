@@ -12,14 +12,52 @@
 # +-----------------------------------------------------------------+
 
 from coriolis.Hurricane import Cell
-from sympy import Or, S, simplify_logic
+from sympy import Not, Or, S, simplify_logic
 
 from .CellODC import CellODC
 
 
+def optimize_FFEntry(entry):
+    all = []
+    while len(entry.functions):
+        func = entry.functions.pop(0)
+        entry.no_opti = Or(entry.no_opti, func)
+        atoms = func.atoms() - {f.args[0] for f in func.atoms(Not)}
+        atoms |= func.atoms(Not)
+        all.append([atoms, func])
+    entry.functions = sorted(all, key=lambda x: len(x[0]))
+    all.clear()
+    while len(entry.functions) > 0:
+        atoms, func = entry.functions.pop(0)
+        done = False
+        for i in range(len(entry.functions)):
+            if atoms.issubset(entry.functions[i][0]):
+                entry.functions[i][1] = simplify_logic(Or(func, entry.functions[i][1]), force=True)
+                entry.functions[i][0] = entry.functions[i][1].atoms() - {
+                    f.args[0] for f in entry.functions[i][1].atoms(Not)
+                }
+                entry.functions[i][0] |= entry.functions[i][1].atoms(Not)
+                done = True
+                break
+        if not done:
+            all.append([atoms, func])
+        else:
+            entry.functions += all
+            all.clear()
+            entry.functions = sorted(entry.functions, key=lambda x: len(x[0]))
+    entry.functions.clear()
+    while len(all) > 1:
+        _, func = all.pop(0)
+        all[0][1] = simplify_logic(Or(func, all[0][1]))
+    entry.function = all[0][1]
+
+
 class FFEntry:
     def __init__(self):
-        self.function: S = S.true
+        self.function: S = S.false
+        self.no_opti: S = S.false
+        self.functions = list()
+        self.is_true = False
         self.name: str = ""
 
     def __str__(self):
@@ -32,6 +70,8 @@ class FFDatabase:
         self._ffs: set[str] = set()
         self._len = 0
         self.nets_true = set()
+        self.opti = 0
+        self.variables_removed = 0
 
     def __contains__(self, cell):
         if type(cell) is Cell:
@@ -47,7 +87,7 @@ class FFDatabase:
             if old_entry.function == S.true or function == S.true:
                 old_entry.function = S.true
                 return True
-            old_entry.function = simplify_logic(Or(function, old_entry.function))
+            old_entry.functions.append(function)
             return True  # return true if walker should stop
         else:
             self._ffs.add(ff.getName())
@@ -66,11 +106,16 @@ class FFDatabase:
     def __len__(self):
         return len(self._ff)
 
-    def processFuncs(self):
-        print("Simplifying ODC functions (simplification forced, could take some time...)")
-        for nb, value in enumerate(self._ff.values()):
-            print(f"{nb}/{len(self._ff)} ({nb * 100 / len(self._ff):.2f}%)")
-            value.simplify()
+    def compute_functions(self):
+        for i, entry in enumerate(self._ff.values()):
+            print(f"{i}/{len(self._ff)} ({i*100/len(self._ff):.2f}%), {self.opti} optimizations found")
+            if entry.function == S.true:
+                entry.functions.clear()
+                entry.no_opti = S.true
+                print("\033[F\033[K", end="")
+                continue
+            optimize_FFEntry(entry)
+            if entry.function != entry.no_opti:
+                self.opti += 1
+                self.variables_removed += len(entry.no_opti.atoms()) - len(entry.function.atoms())
             print("\033[F\033[K", end="")
-        print("\033[F\033[K", end="")
-        print("Simplification done.")

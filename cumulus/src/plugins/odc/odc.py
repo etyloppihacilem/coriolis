@@ -79,6 +79,9 @@ class odc:
             self._done.wait(timeout=refresh_rate)
             print("\033[F\033[K" * 4, end="")
         print("\033[F\033[K", end="")
+        print("Simplifying functions, could take some time...")
+        self._db.compute_functions()
+        print("\033[F\033[K", end="")
         runner.join()
         print("Stats :")
         print(f"  Elapsed time : {str(datetime.now() - started).split('.')[0]}")
@@ -91,6 +94,8 @@ class odc:
         print(f"  Results: {len(self._db)} flip-flops")
         activation = len([f for f in self._db.values() if f.function != S.true])
         print(f"    With activation: {activation} flip-flops ({activation*100/len(self._db):.2f}%)")
+        print(f"    Simplified: {self._db.opti} functions out of {activation} ({self._db.opti*100/activation:.2f}%)")
+        print(f"    Variables removed: {self._db.variables_removed}")
         # print("Iteration repartition")
         # for index, count in enumerate(ODCWalker.iter_rep):
         #     print(f"{index}: {count}")
@@ -103,3 +108,4 @@ class odc:
         with open(filename, "w") as f:
             for value in results.values():
                 f.write(f"{value.name}: {value.function}\n")
+                # f.write(f"{value.name}: {value.no_opti}\n\n")
