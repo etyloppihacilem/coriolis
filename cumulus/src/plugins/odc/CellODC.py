@@ -35,7 +35,7 @@ class CellODC:
         except AttributeError:
             master_cell = cell
         self._master_cell: str = master_cell.getName()
-        self._pins_direction: dict[str, str] = {}  # dict of output pins, containing dict of input pins.
+        self._pins_direction: dict[str, str] = {}
         self._is_ff: bool = False
         self._is_steering: bool = False
         self._observability: dict[str, dict[str]] = {} # [output_pin, [input_pin, odc_func]]
@@ -115,7 +115,7 @@ class CellODC:
                     f1 = func.subs(symbol, True)
                     derivative = simplify_logic(Xor(f0, f1))
                     if derivative == S.true or derivative == S.false:
-                        return # TODO: is is really return and not continue ?
+                        break
                     symbols_of_derivative = derivative.free_symbols
                     for p in input_pins:
                         if p not in [str(s).replace("~", "") for s in symbols_of_derivative] + [pin]:

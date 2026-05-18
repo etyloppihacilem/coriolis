@@ -25,15 +25,13 @@ class FFEntry:
     def __str__(self):
         return f"{self.name}: {self.function}"
 
-    def simplify(self):
-        self.function = simplify_logic(self.function)
-
 
 class FFDatabase:
     def __init__(self):
         self._ff: dict[str, FFEntry] = {}
         self._ffs: set[str] = set()
         self._len = 0
+        self.nets_true = set()
 
     def __contains__(self, cell):
         if type(cell) is Cell:
@@ -61,6 +59,9 @@ class FFDatabase:
 
     def items(self):
         return self._ff.items()
+
+    def values(self):
+        return self._ff.values()
 
     def __len__(self):
         return len(self._ff)
