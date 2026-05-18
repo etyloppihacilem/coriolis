@@ -113,6 +113,14 @@ class ODCWalker:
                 continue
             if master_net.getName() not in odc_info._observability[master_output.getName()]:  # if pin is not observable
                 continue
+            if (
+                self._function == S.true
+                and odc_info._observability[master_output.getName()][master_net.getName()] == S.true
+            ):
+                if net.getName() in self._results.nets_true:
+                    continue
+                else:
+                    self._results.nets_true.add(net.getName())
             if first:
                 if odc_info.isSteering:
                     ext_expr = replaceSymbols(

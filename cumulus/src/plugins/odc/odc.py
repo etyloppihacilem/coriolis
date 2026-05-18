@@ -17,9 +17,10 @@ from queue import LifoQueue
 from threading import Event, Thread
 
 from coriolis.Hurricane import Cell, Net
+from sympy import S, simplify_logic
 
 from .CellODCCache import CellODCCache
-from .FFDatabase import FFDatabase
+from .FFDatabase import FFDatabase, optimize_FFEntry
 from .ODCWalker import ODCWalker
 
 
@@ -87,11 +88,12 @@ class odc:
         print(f"  Iterations : {ODCWalker.iter_count}")
         print(f"    avg. speed  : {sum(avg_iter_speed) / len(avg_iter_speed):.2f} iteration/s")
         print(f"    it. per w.  : {ODCWalker.iter_count/ODCWalker.walker_number:.2f} iteration/walker")
-        print("Iteration repartition")
-        for index, count in enumerate(ODCWalker.iter_rep):
-            print(f"{index}: {count}")
-        if force_simplify:
-            self._db.processFuncs()
+        print(f"  Results: {len(self._db)} flip-flops")
+        activation = len([f for f in self._db.values() if f.function != S.true])
+        print(f"    With activation: {activation} flip-flops ({activation*100/len(self._db):.2f}%)")
+        # print("Iteration repartition")
+        # for index, count in enumerate(ODCWalker.iter_rep):
+        #     print(f"{index}: {count}")
         print("ODC done.")
 
     def save_to_file(self, filename="odc_results.odc"):
@@ -99,5 +101,5 @@ class odc:
             print("[ERROR] ODC was not calculated yet, can not save to file.")
         results = OrderedDict(sorted(self._db.items(), key=lambda item: item[0]))
         with open(filename, "w") as f:
-            for key, value in results.items():
-                f.write(f"{key}: {value}\n")
+            for value in results.values():
+                f.write(f"{value.name}: {value.function}\n")
