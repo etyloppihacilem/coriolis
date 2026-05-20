@@ -18,38 +18,44 @@ from .CellODC import CellODC
 
 
 def optimize_FFEntry(entry):
-    all = []
+    working = []
+    already_opti = []
     while len(entry.functions):
         func = entry.functions.pop(0)
         entry.no_opti = Or(entry.no_opti, func)
         atoms = func.atoms() - {f.args[0] for f in func.atoms(Not)}
         atoms |= func.atoms(Not)
-        all.append([atoms, func])
-    entry.functions = sorted(all, key=lambda x: len(x[0]))
-    all.clear()
-    while len(entry.functions) > 0:
-        atoms, func = entry.functions.pop(0)
+        working.append([atoms, func])
+    working = sorted(working, key=lambda x: len(x[0]))
+    while len(working) > 0:
+        atoms, func = working.pop(0)
         done = False
-        for i in range(len(entry.functions)):
-            if atoms.issubset(entry.functions[i][0]):
-                entry.functions[i][1] = simplify_logic(Or(func, entry.functions[i][1]), force=True)
-                entry.functions[i][0] = entry.functions[i][1].atoms() - {
-                    f.args[0] for f in entry.functions[i][1].atoms(Not)
+        for i in range(len(working)):
+            if atoms.issubset(working[i][0]):
+                working[i][1] = simplify_logic(Or(func, working[i][1]), force=True)
+                working[i][0] = working[i][1].atoms() - {
+                    f.args[0] for f in working[i][1].atoms(Not)
                 }
-                entry.functions[i][0] |= entry.functions[i][1].atoms(Not)
+                working[i][0] |= working[i][1].atoms(Not)
                 done = True
                 break
         if not done:
-            all.append([atoms, func])
+            already_opti.append([atoms, func])
         else:
-            entry.functions += all
-            all.clear()
-            entry.functions = sorted(entry.functions, key=lambda x: len(x[0]))
-    entry.functions.clear()
-    while len(all) > 1:
-        _, func = all.pop(0)
-        all[0][1] = simplify_logic(Or(func, all[0][1]))
-    entry.function = all[0][1]
+            working += already_opti
+            already_opti.clear()
+            working = sorted(working, key=lambda x: len(x[0]))
+    working.clear()
+    while len(already_opti) > 1:
+        _, func = already_opti.pop(0)
+        already_opti[0][1] = simplify_logic(Or(func, already_opti[0][1]))
+    if len(already_opti) == 0:
+        print("\033[F\033[K", end="")
+        print(f"[ERROR] Simplifying function for {entry.name}, default to True.")
+        print("")
+        entry.function = S.true
+        return
+    entry.function = already_opti[0][1]
 
 
 class FFEntry:
@@ -93,6 +99,7 @@ class FFDatabase:
             self._ffs.add(ff.getName())
             entry = FFEntry()
             entry.function = function
+            entry.functions.append(function)
             entry.name = ff.getName()
             self._ff[ff.getName()] = entry
         return False

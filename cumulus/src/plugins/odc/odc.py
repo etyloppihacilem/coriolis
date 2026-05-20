@@ -92,10 +92,15 @@ class odc:
         print(f"    avg. speed  : {sum(avg_iter_speed) / len(avg_iter_speed):.2f} iteration/s")
         print(f"    it. per w.  : {ODCWalker.iter_count/ODCWalker.walker_number:.2f} iteration/walker")
         print(f"  Results: {len(self._db)} flip-flops")
-        activation = len([f for f in self._db.values() if f.function != S.true])
+        functions = [f for f in self._db.values() if f.function != S.true]
+        activation = len(functions)
         print(f"    With activation: {activation} flip-flops ({activation*100/len(self._db):.2f}%)")
         print(f"    Simplified: {self._db.opti} functions out of {activation} ({self._db.opti*100/activation:.2f}%)")
         print(f"    Variables removed: {self._db.variables_removed}")
+        nb_var = [len(f.function.atoms()) for f in functions]
+        print(f"    Avg. variables: {sum(nb_var)/len(nb_var):.2f}")
+        print(f"    Max. variables: {max(nb_var)}")
+        print(f"    Min. variables: {min(nb_var)}")
         # print("Iteration repartition")
         # for index, count in enumerate(ODCWalker.iter_rep):
         #     print(f"{index}: {count}")
@@ -108,4 +113,4 @@ class odc:
         with open(filename, "w") as f:
             for value in results.values():
                 f.write(f"{value.name}: {value.function}\n")
-                # f.write(f"{value.name}: {value.no_opti}\n\n")
+                f.write(f"{value.name}: {value.no_opti}\n\n")
