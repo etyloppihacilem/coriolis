@@ -36,6 +36,7 @@
 #include "hurricane/Properties.h"
 #include "hurricane/Collection.h"
 
+#include <algorithm>
 
 namespace Hurricane {
 
