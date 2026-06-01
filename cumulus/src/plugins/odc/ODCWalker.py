@@ -68,6 +68,7 @@ class ODCWalker:
             self._plug = plug
             self._results = results
             self._todo = todo
+            self._path = list()
         else:  # we need to do a deep copy because this is a child of another walker.
             self._cache = other._cache  # not a copy
             self._from_plug = from_plug
@@ -76,6 +77,7 @@ class ODCWalker:
             self._plug = plug
             self._results = other._results  # not a copy
             self._todo = other._todo  # not a copy
+            self._path = list(other._path)
 
     def fork(self, net: Net = None, plug: Plug = None, function=S.true):
         if net:
@@ -159,10 +161,13 @@ class ODCWalker:
 
             # Encounters FF
             if odc_info.isFlipflop:
-                stop_there = self._results.addNewFF(instance, odc_info, self._function)
+                stop_there = self._results.addNewFF(instance, odc_info, self._function, self._path)
                 if stop_there:
                     break  # A younger mike did already leave from there
                 self._function = S.true
+                self._path = list()
+            else:
+                self._path.append(instance.getName())
 
             self.iterate_over_plug(instance, master_output, odc_info)
         if iter >= len(ODCWalker.iter_rep):

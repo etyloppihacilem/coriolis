@@ -11,6 +11,8 @@
 # |  Python      :   "./plugins/odc/FFDatabase.py"                  |
 # +-----------------------------------------------------------------+
 
+from queue import Queue
+
 from coriolis.Hurricane import Cell
 from sympy import Not, Or, S, simplify_logic
 
@@ -71,13 +73,15 @@ class FFEntry:
 
 
 class FFDatabase:
-    def __init__(self):
+    def __init__(self, enable_estimate=False):
         self._ff: dict[str, FFEntry] = {}
         self._ffs: set[str] = set()
         self._len = 0
         self.nets_true = set()
         self.opti = 0
         self.variables_removed = 0
+        self.enable_estimate = enable_estimate
+        self.path_ff: dict[int, set[str]] = {}
 
     def __contains__(self, cell):
         if type(cell) is Cell:
@@ -87,8 +91,10 @@ class FFDatabase:
     def __getitem__(self, key):
         return self._ff[key]
 
-    def addNewFF(self, ff: Cell, ff_info: CellODC, function):
+    def addNewFF(self, ff: Cell, ff_info: CellODC, function, path):
         if ff.getName() in self._ffs:
+            if self.enable_estimate:
+                self.path_ff[ff.getName()].update(path)
             old_entry = self._ff[ff.getName()]
             if old_entry.function == S.true or function == S.true:
                 old_entry.function = S.true
@@ -102,6 +108,8 @@ class FFDatabase:
             entry.functions.append(function)
             entry.name = ff.getName()
             self._ff[ff.getName()] = entry
+            if self.enable_estimate:
+                self.path_ff[ff.getName()] = set(path)
         return False
 
     def items(self):
@@ -126,3 +134,15 @@ class FFDatabase:
                 self.opti += 1
                 self.variables_removed += len(entry.no_opti.atoms()) - len(entry.function.atoms())
             print("\033[F\033[K", end="")
+
+    def compute_estimate(self):
+        results = {}
+        for ff, cells in self.path_ff.items():
+            affected = 1 if self._ff[ff].function != S.true else 0
+            for cell in cells:
+                try:
+                    results[cell].append(affected)
+                except KeyError:
+                    results[cell] = [affected]
+        calc_results = [sum(i)/len(i) for i in results.values()]
+        return sum(calc_results)/len(calc_results)
