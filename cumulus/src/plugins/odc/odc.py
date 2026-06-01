@@ -25,12 +25,13 @@ from .ODCWalker import ODCWalker
 
 
 class odc:
-    def __init__(self, circuit: Cell):
+    def __init__(self, circuit: Cell, enable_estimate=True):
         self._cell: Cell = circuit
         self._todo: LifoQueue = LifoQueue()
-        self._db: FFDatabase = FFDatabase()
+        self._db: FFDatabase = FFDatabase(enable_estimate=enable_estimate)
         self._cache: CellODCCache = CellODCCache()
         self._done: Event = Event()
+        self._enable_estimate = enable_estimate
 
         for net in self._cell.getExternalNets():
             if net.getDirection() == Net.Direction.OUT:
@@ -39,6 +40,8 @@ class odc:
     def run_odc(self):
         ODCWalker.walker_number = 0
         ODCWalker.iter_count = 0
+        ODCWalker.iter_rep = list()
+        ODCWalker.path_id = 0
         try:
             while not self._todo.empty():
                 task = self._todo.get()
@@ -101,6 +104,8 @@ class odc:
         print(f"    Avg. variables: {sum(nb_var)/len(nb_var):.2f}")
         print(f"    Max. variables: {max(nb_var)}")
         print(f"    Min. variables: {min(nb_var)}")
+        if self._enable_estimate:
+            print(f"    Est. impact on cells: {self._db.compute_estimate()*100:.2f}%")
         # print("Iteration repartition")
         # for index, count in enumerate(ODCWalker.iter_rep):
         #     print(f"{index}: {count}")
