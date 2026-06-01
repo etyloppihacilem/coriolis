@@ -121,19 +121,21 @@ class FFDatabase:
     def __len__(self):
         return len(self._ff)
 
-    def compute_functions(self):
+    def compute_functions(self, pretty):
         for i, entry in enumerate(self._ff.values()):
             print(f"{i}/{len(self._ff)} ({i*100/len(self._ff):.2f}%), {self.opti} optimizations found")
             if entry.function == S.true:
                 entry.functions.clear()
                 entry.no_opti = S.true
-                print("\033[F\033[K", end="")
+                if pretty:
+                    print("\033[F\033[K", end="")
                 continue
             optimize_FFEntry(entry)
             if entry.function != entry.no_opti:
                 self.opti += 1
                 self.variables_removed += len(entry.no_opti.atoms()) - len(entry.function.atoms())
-            print("\033[F\033[K", end="")
+            if pretty:
+                print("\033[F\033[K", end="")
 
     def compute_estimate(self):
         results = {}

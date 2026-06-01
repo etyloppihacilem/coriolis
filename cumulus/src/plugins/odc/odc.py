@@ -51,7 +51,7 @@ class odc:
             raise e
         self._done.set()
 
-    def computeODC(self, force_simplify=False, refresh_rate=2):
+    def computeODC(self, force_simplify=False, refresh_rate=2, pretty=True):
         started = datetime.now()
         print(f"Starting at {str(started).split('.')[0]}")
         runner = Thread(target=self.run_odc)
@@ -80,11 +80,14 @@ class odc:
             print(f"Iterations : {iter_count} ({iter_speed:} iterations/s)")
             prev_iter_count = iter_count
             self._done.wait(timeout=refresh_rate)
-            print("\033[F\033[K" * 4, end="")
-        print("\033[F\033[K", end="")
+            if pretty:
+                print("\033[F\033[K" * 4, end="")
+        if pretty:
+            print("\033[F\033[K", end="")
         print("Simplifying functions, could take some time...")
-        self._db.compute_functions()
-        print("\033[F\033[K", end="")
+        self._db.compute_functions(pretty)
+        if pretty:
+            print("\033[F\033[K", end="")
         runner.join()
         print("Stats :")
         print(f"  Elapsed time : {str(datetime.now() - started).split('.')[0]}")
