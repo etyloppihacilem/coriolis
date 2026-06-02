@@ -59,7 +59,6 @@ def optimize_FFEntry(entry):
         _, func = already_opti.pop(0)
         already_opti[0][1] = simplify_logic(Or(func, already_opti[0][1]))
     if len(already_opti) == 0:
-        print("\033[F\033[K", end="")
         print(f"[ERROR] Simplifying function for {entry.name}, default to True.")
         print("")
         entry.function = S.true
@@ -80,14 +79,14 @@ class FFEntry:
 
 
 class FFDatabase:
-    def __init__(self, enable_estimate=False):
+    def __init__(self, odc):
         self._ff: dict[str, FFEntry] = {}
         self._ffs: set[str] = set()
         self._len = 0
         self.nets_true = set()
         self.opti = 0
         self.variables_removed = 0
-        self.enable_estimate = enable_estimate
+        self.odc = odc
         self.path_ff: dict[int, set[str]] = {}
 
     def __contains__(self, cell):
@@ -101,8 +100,7 @@ class FFDatabase:
     def addNewFF(self, ff: Cell, ff_info: CellODC, function, path, depth):
         ff_name = generateDepthName(ff, depth)
         if ff_name in self._ffs:
-            if self.enable_estimate:
-                self.path_ff[ff_name].update(path)
+            self.path_ff[ff_name].update(path)
             old_entry = self._ff[ff_name]
             if old_entry.function == S.true or function == S.true:
                 old_entry.function = S.true
@@ -116,8 +114,7 @@ class FFDatabase:
             entry.functions.append(function)
             entry.name = ff_name
             self._ff[ff_name] = entry
-            if self.enable_estimate:
-                self.path_ff[ff_name] = set(path)
+            self.path_ff[ff_name] = set(path)
         return False
 
     def items(self):
@@ -129,21 +126,20 @@ class FFDatabase:
     def __len__(self):
         return len(self._ff)
 
-    def compute_functions(self, pretty):
+    def compute_functions(self):
+        from .odc import ODCVerbose
         for i, entry in enumerate(self._ff.values()):
-            print(f"{i}/{len(self._ff)} ({i*100/len(self._ff):.2f}%), {self.opti} optimizations found")
+            self.odc.printv(ODCVerbose.Normal, f"{i}/{len(self._ff)} ({i*100/len(self._ff):.2f}%), {self.opti} optimizations found")
             if entry.function == S.true:
                 entry.functions.clear()
                 entry.no_opti = S.true
-                if pretty:
-                    print("\033[F\033[K", end="")
+                self.odc.erasev(ODCVerbose.Normal)
                 continue
             optimize_FFEntry(entry)
             if entry.function != entry.no_opti:
                 self.opti += 1
                 self.variables_removed += len(entry.no_opti.atoms()) - len(entry.function.atoms())
-            if pretty:
-                print("\033[F\033[K", end="")
+            self.odc.erasev(ODCVerbose.Normal)
 
     def compute_estimate(self):
         results = {}
