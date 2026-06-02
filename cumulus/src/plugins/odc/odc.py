@@ -17,10 +17,10 @@ from queue import LifoQueue
 from threading import Event, Thread
 
 from coriolis.Hurricane import Cell, Net
-from sympy import S, simplify_logic
+from sympy import S
 
 from .CellODCCache import CellODCCache
-from .FFDatabase import FFDatabase, optimize_FFEntry
+from .FFDatabase import FFDatabase
 from .ODCWalker import ODCWalker
 
 
@@ -41,7 +41,6 @@ class odc:
         ODCWalker.walker_number = 0
         ODCWalker.iter_count = 0
         ODCWalker.iter_rep = list()
-        ODCWalker.path_id = 0
         try:
             while not self._todo.empty():
                 task = self._todo.get()
@@ -52,6 +51,8 @@ class odc:
         self._done.set()
 
     def computeODC(self, force_simplify=False, refresh_rate=2, pretty=True):
+        assert refresh_rate > 0
+        print(f"Extracting observability for {self._cell.getName()}")
         started = datetime.now()
         print(f"Starting at {str(started).split('.')[0]}")
         runner = Thread(target=self.run_odc)
@@ -92,27 +93,32 @@ class odc:
         print("Stats :")
         print(f"  Elapsed time : {str(datetime.now() - started).split('.')[0]}")
         print(f"  Walkers : {ODCWalker.walker_number}")
-        print(f"    avg. growth : {sum(avg_walker_growth) / len(avg_walker_growth):+.2f} walker/s")
-        print(f"    avg. alive  : {sum(avg_walker_alive) / len(avg_walker_alive):.2f} walker")
+        print(f"    avg. growth : {sum(avg_walker_growth) / max(len(avg_walker_growth), 1):+.2f} walker/s")
+        print(f"    avg. alive  : {sum(avg_walker_alive) / max(len(avg_walker_alive), 1):.2f} walker")
         print(f"  Iterations : {ODCWalker.iter_count}")
-        print(f"    avg. speed  : {sum(avg_iter_speed) / len(avg_iter_speed):.2f} iteration/s")
-        print(f"    it. per w.  : {ODCWalker.iter_count/ODCWalker.walker_number:.2f} iteration/walker")
+        print(f"    avg. speed  : {sum(avg_iter_speed) / max(len(avg_iter_speed), 1):.2f} iteration/s")
+        print(f"    it. per w.  : {ODCWalker.iter_count/max(ODCWalker.walker_number, 1):.2f} iteration/walker")
         print(f"  Results: {len(self._db)} flip-flops")
         functions = [f for f in self._db.values() if f.function != S.true]
         activation = len(functions)
-        print(f"    With activation: {activation} flip-flops ({activation*100/len(self._db):.2f}%)")
-        print(f"    Simplified: {self._db.opti} functions out of {activation} ({self._db.opti*100/activation:.2f}%)")
+        print(f"    With activation: {activation} flip-flops ({activation*100/max(len(self._db), 1):.2f}%)")
+        print(f"    Simplified: {self._db.opti} functions out of {
+              activation} ({self._db.opti*100/max(activation, 1):.2f}%)")
         print(f"    Variables removed: {self._db.variables_removed}")
         nb_var = [len(f.function.atoms()) for f in functions]
-        print(f"    Avg. variables: {sum(nb_var)/len(nb_var):.2f}")
-        print(f"    Max. variables: {max(nb_var)}")
-        print(f"    Min. variables: {min(nb_var)}")
+        print(f"    Avg. variables: {sum(nb_var)/max(len(nb_var), 1):.2f}")
+        if len(nb_var) > 0:
+            print(f"    Max. variables: {max(nb_var)}")
+            print(f"    Min. variables: {min(nb_var)}")
         if self._enable_estimate:
             print(f"    Est. impact on cells: {self._db.compute_estimate()*100:.2f}%")
         # print("Iteration repartition")
         # for index, count in enumerate(ODCWalker.iter_rep):
         #     print(f"{index}: {count}")
         print("ODC done.")
+        ODCWalker.walker_number = 0
+        ODCWalker.iter_count = 0
+        ODCWalker.iter_rep = list()
 
     def save_to_file(self, filename="odc_results.odc"):
         if not self._done.is_set():
@@ -122,3 +128,4 @@ class odc:
             for value in results.values():
                 f.write(f"{value.name}: {value.function}\n")
                 # f.write(f"{value.name}: {value.no_opti}\n\n")
+        print(f"ODC results saved to {filename}")
