@@ -13,11 +13,11 @@
 
 from queue import LifoQueue
 
-from coriolis.Hurricane import Net, Plug
+from coriolis.Hurricane import Cell, Instance, Net, Plug
 from sympy import And, S, Symbol
 
 from .CellODCCache import CellODCCache
-from .FFDatabase import FFDatabase
+from .FFDatabase import FFDatabase, generateDepthName
 
 
 def getSymbolsMap(instance):
@@ -35,6 +35,15 @@ def replaceSymbols(expr, correspondance):
     ret = expr
     ret = ret.subs(correspondance)
     return ret
+
+
+def isHierarchical(cell):
+    if type(cell) is Cell:
+        return len(list(cell.getInstances())) > 1
+    elif type(cell) is Instance:
+        return len(list(cell.getMasterCell().getInstances())) > 1
+    print(f"[WARNING] Trying to determine hierarchy of unknown type {type(cell)}")
+    return False
 
 
 class ODCWalker:
@@ -69,6 +78,7 @@ class ODCWalker:
             self._results = results
             self._todo = todo
             self._path = list()
+            self._depth = list()
         else:  # we need to do a deep copy because this is a child of another walker.
             self._cache = other._cache  # not a copy
             self._from_plug = from_plug
@@ -78,6 +88,7 @@ class ODCWalker:
             self._results = other._results  # not a copy
             self._todo = other._todo  # not a copy
             self._path = list(other._path)
+            self._depth = list(other._depth)
 
     def fork(self, net: Net = None, plug: Plug = None, function=S.true):
         if net:
@@ -89,9 +100,18 @@ class ODCWalker:
             raise AttributeError
 
     def iterate_over_net(self):
+        self._plug = None
+        if len(self._depth) > 0 and self._net.isExternal() and self._net.getDirection() == Net.Direction.IN:
+            # we 'teleport' out of hierarchical cell and continue.
+            instance_frontiere = self._depth.pop()
+            upper_plug = instance_frontiere.getPlug(self._net)
+            if upper_plug:
+                self._net = upper_plug.getNet()
+            else:
+                print("[WARNING] Walker could not get out of hierarchical cell.")
+                return
         net = self._net
         first_plug = True
-        self._plug = None
         for plug in net.getPlugs():
             master_net = plug.getMasterNet()
             if master_net.getDirection() != Net.Direction.OUT:
@@ -119,10 +139,10 @@ class ODCWalker:
                 self._function == S.true
                 and odc_info._observability[master_output.getName()][master_net.getName()] == S.true
             ):
-                if net.getName() in self._results.nets_true:
+                if generateDepthName(net, self._depth) in self._results.nets_true:
                     continue
                 else:
-                    self._results.nets_true.add(net.getName())
+                    self._results.nets_true.add(generateDepthName(net, self._depth))
             if first:
                 if odc_info.isSteering:
                     ext_expr = replaceSymbols(
@@ -144,6 +164,7 @@ class ODCWalker:
 
     def run(self):
         iter = 0
+        instance = None
         while self._plug is not None or self._net is not None:
             iter += 1
             ODCWalker.iter_count += 1
@@ -155,14 +176,21 @@ class ODCWalker:
                 self._from_plug = False
             # All plugs explored
             instance = self._plug.getInstance()
+            if isHierarchical(instance):
+                self._depth.append(instance)
+                internalNet = self._plug.getMasterNet()
+                self._net = internalNet
+                self._plug = None
+                continue # we are traveling to internal net, not over plugs
             master_output = self._plug.getMasterNet()
             self._plug = None
             odc_info = self._cache[instance]
 
             # Encounters FF
             if odc_info.isFlipflop:
-                stop_there = self._results.addNewFF(instance, odc_info, self._function, self._path)
+                stop_there = self._results.addNewFF(instance, odc_info, self._function, self._path, self._depth)
                 if stop_there:
+                    instance = None
                     break  # A younger mike did already leave from there
                 self._function = S.true
                 self._path = list()

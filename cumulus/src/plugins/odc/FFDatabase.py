@@ -19,6 +19,13 @@ from sympy import Not, Or, S, simplify_logic
 from .CellODC import CellODC
 
 
+def generateDepthName(ff, depth):
+    if len(depth) > 0:
+        return ff.getName() + "." + ".".join([c.getName() for c in depth])
+    else:
+        return ff.getName()
+
+
 def optimize_FFEntry(entry):
     working = []
     already_opti = []
@@ -91,25 +98,26 @@ class FFDatabase:
     def __getitem__(self, key):
         return self._ff[key]
 
-    def addNewFF(self, ff: Cell, ff_info: CellODC, function, path):
-        if ff.getName() in self._ffs:
+    def addNewFF(self, ff: Cell, ff_info: CellODC, function, path, depth):
+        ff_name = generateDepthName(ff, depth)
+        if ff_name in self._ffs:
             if self.enable_estimate:
-                self.path_ff[ff.getName()].update(path)
-            old_entry = self._ff[ff.getName()]
+                self.path_ff[ff_name].update(path)
+            old_entry = self._ff[ff_name]
             if old_entry.function == S.true or function == S.true:
                 old_entry.function = S.true
                 return True
             old_entry.functions.append(function)
             return True  # return true if walker should stop
         else:
-            self._ffs.add(ff.getName())
+            self._ffs.add(ff_name)
             entry = FFEntry()
             entry.function = function
             entry.functions.append(function)
-            entry.name = ff.getName()
-            self._ff[ff.getName()] = entry
+            entry.name = ff_name
+            self._ff[ff_name] = entry
             if self.enable_estimate:
-                self.path_ff[ff.getName()] = set(path)
+                self.path_ff[ff_name] = set(path)
         return False
 
     def items(self):

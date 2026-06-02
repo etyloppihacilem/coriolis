@@ -39,11 +39,13 @@ class CellODC:
         self._is_ff: bool = False
         self._is_steering: bool = False
         self._observability: dict[str, dict[str]] = {} # [output_pin, [input_pin, odc_func]]
+        self._is_in_lib = True
         pins_functions = {}
 
         grp = getLibertyGroupFromCell(master_cell)
         if grp is None:
             print(f"[WARNING] No library information attached to {self._master_cell}")
+            self._is_in_lib = False
             return
 
         # adding pins to list
@@ -135,6 +137,9 @@ class CellODC:
     @property
     def isSteering(self):
         return self._is_steering
+
+    def __bool__(self):
+        return self._is_in_lib
 
     def print(self):
         print(f"# {self._master_cell}")
