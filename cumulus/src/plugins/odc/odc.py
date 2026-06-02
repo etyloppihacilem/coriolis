@@ -121,4 +121,4 @@ class odc:
         with open(filename, "w") as f:
             for value in results.values():
                 f.write(f"{value.name}: {value.function}\n")
-                f.write(f"{value.name}: {value.no_opti}\n\n")
+                # f.write(f"{value.name}: {value.no_opti}\n\n")
