@@ -94,14 +94,20 @@ class ODCWalker:
         if net:
             self._todo.put(ODCWalker(other=self, net=net, function=function))
         elif plug:
-            self._todo.put(ODCWalker(other=self, plug=plug, from_plug=True, function=function))
+            self._todo.put(
+                ODCWalker(other=self, plug=plug, from_plug=True, function=function)
+            )
         else:
             print("[ERROR] Calling fork for ODCWalker with no args")
             raise AttributeError
 
     def iterate_over_net(self):
         self._plug = None
-        if len(self._depth) > 0 and self._net.isExternal() and self._net.getDirection() == Net.Direction.IN:
+        if (
+            len(self._depth) > 0
+            and self._net.isExternal()
+            and self._net.getDirection() == Net.Direction.IN
+        ):
             # we 'teleport' out of hierarchical cell and continue.
             instance_frontiere = self._depth.pop()
             upper_plug = instance_frontiere.getPlug(self._net)
@@ -131,13 +137,23 @@ class ODCWalker:
         for plug in instance.getPlugs():  # should use list in odc_info
             net = plug.getNet()
             master_net = plug.getMasterNet()
-            if master_net.getDirection() != Net.Direction.IN or master_net.isSupply() or master_net.isClock():
+            if (
+                master_net.getDirection() != Net.Direction.IN
+                or master_net.isSupply()
+                or master_net.isClock()
+            ):
                 continue
-            if master_net.getName() not in odc_info._observability[master_output.getName()]:  # if pin is not observable
+            if (
+                master_net.getName()
+                not in odc_info._observability[master_output.getName()]
+            ):  # if pin is not observable
                 continue
             if (
                 self._function == S.true
-                and odc_info._observability[master_output.getName()][master_net.getName()] == S.true
+                and odc_info._observability[master_output.getName()][
+                    master_net.getName()
+                ]
+                == S.true
             ):
                 if generateDepthName(net, self._depth) in self._results.nets_true:
                     continue
@@ -146,7 +162,10 @@ class ODCWalker:
             if first:
                 if odc_info.isSteering:
                     ext_expr = replaceSymbols(
-                        odc_info._observability[master_output.getName()][master_net.getName()], net_map
+                        odc_info._observability[master_output.getName()][
+                            master_net.getName()
+                        ],
+                        net_map,
                     )
                     new_function = And(self._function, ext_expr)
                 self._net = net
@@ -155,7 +174,10 @@ class ODCWalker:
                 function = S.true
                 if odc_info.isSteering:
                     ext_expr = replaceSymbols(
-                        odc_info._observability[master_output.getName()][master_net.getName()], net_map
+                        odc_info._observability[master_output.getName()][
+                            master_net.getName()
+                        ],
+                        net_map,
                     )
                     function = ext_expr
                 self.fork(net=net, function=function)
@@ -181,14 +203,16 @@ class ODCWalker:
                 internalNet = self._plug.getMasterNet()
                 self._net = internalNet
                 self._plug = None
-                continue # we are traveling to internal net, not over plugs
+                continue  # we are traveling to internal net, not over plugs
             master_output = self._plug.getMasterNet()
             self._plug = None
             odc_info = self._cache[instance]
 
             # Encounters FF
             if odc_info.isFlipflop:
-                stop_there = self._results.addNewFF(instance, odc_info, self._function, self._path, self._depth)
+                stop_there = self._results.addNewFF(
+                    instance, odc_info, self._function, self._path, self._depth
+                )
                 if stop_there:
                     instance = None
                     break  # A younger mike did already leave from there
