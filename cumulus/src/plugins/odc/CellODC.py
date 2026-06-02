@@ -16,19 +16,24 @@ import re
 from coriolis.CRL import getLibertyGroupFromCell
 from coriolis.Hurricane import Cell
 from sympy import Not, S, Xor, simplify_logic, symbols
-from sympy.parsing.sympy_parser import implicit_multiplication_application, parse_expr, standard_transformations
+from sympy.parsing.sympy_parser import (
+    implicit_multiplication_application,
+    parse_expr,
+    standard_transformations,
+)
 
 
 def lib_expr_parsing(expression: str, pins: dict[str, S]):
-    clean_expr = expression.replace('!', '~')
-    clean_expr = clean_expr.replace('"', '')
+    clean_expr = expression.replace("!", "~")
+    clean_expr = clean_expr.replace('"', "")
     transformations = standard_transformations + (implicit_multiplication_application,)
-    parsed_func = parse_expr(clean_expr, transformations=transformations, local_dict=pins)
+    parsed_func = parse_expr(
+        clean_expr, transformations=transformations, local_dict=pins
+    )
     return simplify_logic(parsed_func)
 
 
 class CellODC:
-
     def __init__(self, cell: Cell):
         try:
             master_cell = cell.getMasterCell()
@@ -38,7 +43,9 @@ class CellODC:
         self._pins_direction: dict[str, str] = {}
         self._is_ff: bool = False
         self._is_steering: bool = False
-        self._observability: dict[str, dict[str]] = {} # [output_pin, [input_pin, odc_func]]
+        self._observability: dict[
+            str, dict[str]
+        ] = {}  # [output_pin, [input_pin, odc_func]]
         self._is_in_lib = True
         pins_functions = {}
 
@@ -54,7 +61,9 @@ class CellODC:
             pin_name = re.search(r"\((.*)\)", pin.getGroupName()).group(1)
             pin_direction = pin.getAttribute("direction").getValue()
             self._pins_direction[pin_name] = pin_direction
-        local_dict = {pin_name: symbols(pin_name) for pin_name in self._pins_direction.keys()}
+        local_dict = {
+            pin_name: symbols(pin_name) for pin_name in self._pins_direction.keys()
+        }
 
         for pin in pins:
             pin_name = re.search(r"\((.*)\)", pin.getGroupName()).group(1)
@@ -62,7 +71,7 @@ class CellODC:
             if pin_direction == "output":
                 function = pin.getAttribute("function")
                 if function is None:
-                    continue # no function for output in case of ff
+                    continue  # no function for output in case of ff
                 function = function.getValue()
                 expr = lib_expr_parsing(function, local_dict)
                 func_symbols = expr.free_symbols
@@ -70,7 +79,11 @@ class CellODC:
                 three_state = pin.getAttribute("three_state")
                 if three_state is not None:
                     self._is_steering = True
-                    expr = Not(lib_expr_parsing(three_state.getValue().replace('"', ''), local_dict))
+                    expr = Not(
+                        lib_expr_parsing(
+                            three_state.getValue().replace('"', ""), local_dict
+                        )
+                    )
                     self._observability[pin_name] = {
                         p: expr for p in set([str(s) for s in func_symbols])
                     }
@@ -86,7 +99,9 @@ class CellODC:
 
         # checking wether cell is a flip flop
         ff_grp = grp.getGroups("ff\\(.*")
-        if len(ff_grp) >= 1:  # Attention, peut être ff et steering à la fois !!!! (reset...)
+        if (
+            len(ff_grp) >= 1
+        ):  # Attention, peut être ff et steering à la fois !!!! (reset...)
             ff_grp = ff_grp[0]
             # cell is ff
             self._is_ff = True
@@ -100,16 +115,26 @@ class CellODC:
                 print("[ERROR] flip-flop groups is not correctly formatted.")
                 raise SyntaxError
             # will only traver through inputs used in next_state parameter
-            expr = lib_expr_parsing(ff_grp.getAttribute("next_state").getValue(), local_dict)
+            expr = lib_expr_parsing(
+                ff_grp.getAttribute("next_state").getValue(), local_dict
+            )
             ff_symbols = expr.free_symbols
-            for output in [p_n for p_n, p_d in self._pins_direction.items() if p_d == "output"]:
-                self._observability[output] = {pin: S.true for pin in set([str(s) for s in ff_symbols])}
+            for output in [
+                p_n for p_n, p_d in self._pins_direction.items() if p_d == "output"
+            ]:
+                self._observability[output] = {
+                    pin: S.true for pin in set([str(s) for s in ff_symbols])
+                }
             return
 
         # if not already steering, we need to check derivative of outputs relatives to each input.
         if not self._is_steering:
-            pin_not_steering = [] # we got to list all pins not steering to find the one that steers
-            input_pins = [pin for pin, direction in self._pins_direction.items() if direction == "input"]
+            pin_not_steering = []  # we got to list all pins not steering to find the one that steers
+            input_pins = [
+                pin
+                for pin, direction in self._pins_direction.items()
+                if direction == "input"
+            ]
             for output_name, func in pins_functions.items():
                 for pin in input_pins:
                     symbol = symbols(pin)
@@ -120,7 +145,9 @@ class CellODC:
                         break
                     symbols_of_derivative = derivative.free_symbols
                     for p in input_pins:
-                        if p not in [str(s).replace("~", "") for s in symbols_of_derivative] + [pin]:
+                        if p not in [
+                            str(s).replace("~", "") for s in symbols_of_derivative
+                        ] + [pin]:
                             pin_not_steering.append(pin)
                             self._observability[output_name][pin] = derivative
             if len(pin_not_steering) > 0:
@@ -128,7 +155,9 @@ class CellODC:
                     if p not in pin_not_steering:
                         self._is_steering = True
                         for output in self._observability.keys():
-                            self._observability[output][p] = S.true # non steering pins have observability
+                            self._observability[output][p] = (
+                                S.true
+                            )  # non steering pins have observability
 
     @property
     def isFlipflop(self):

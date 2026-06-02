@@ -25,7 +25,7 @@ from .FFDatabase import FFDatabase
 from .ODCWalker import ODCWalker
 
 
-class ODCVerbose():
+class ODCVerbose:
     No = 0
     Mini = 1
     Normal = 2
@@ -52,7 +52,11 @@ class odc:
 
         for net in self._cell.getExternalNets():
             if net.getDirection() == Net.Direction.OUT:
-                self._todo.put(ODCWalker(net=net, todo=self._todo, results=self._db, cache=self._cache))
+                self._todo.put(
+                    ODCWalker(
+                        net=net, todo=self._todo, results=self._db, cache=self._cache
+                    )
+                )
 
     def printv(self, verbose, *args, **kwargs):
         if self.verbose.val >= verbose:
@@ -77,7 +81,9 @@ class odc:
 
     def computeODC(self, force_simplify=False, refresh_rate=2):
         assert refresh_rate > 0
-        self.printv(ODCVerbose.Normal, f"Extracting observability for {self._cell.getName()}")
+        self.printv(
+            ODCVerbose.Normal, f"Extracting observability for {self._cell.getName()}"
+        )
         started = datetime.now()
         self.printv(ODCVerbose.Normal, f"Starting at {str(started).split('.')[0]}")
         runner = Thread(target=self.run_odc)
@@ -90,20 +96,33 @@ class odc:
         avg_iter_speed = []
         self.printv(ODCVerbose.Normal, f"Stats (live, refresh every {refresh_rate}s) :")
         while not self._done.is_set():
-            self.printv(ODCVerbose.Mini, f"Elapsed time : {str(datetime.now() - started).split('.')[0]}")
+            self.printv(
+                ODCVerbose.Mini,
+                f"Elapsed time : {str(datetime.now() - started).split('.')[0]}",
+            )
             walker_number = ODCWalker.walker_number
             walker_growth = (walker_number - prev_walker_number) / refresh_rate
             avg_walker_growth.append(walker_growth)
-            self.printv(ODCVerbose.Full, f"Walker created : {walker_number} ({walker_growth:+} walker/s)")
+            self.printv(
+                ODCVerbose.Full,
+                f"Walker created : {walker_number} ({walker_growth:+} walker/s)",
+            )
             prev_walker_number = walker_number
             walker_alive = self._todo.qsize()
             avg_walker_alive.append(walker_alive)
-            self.printv(ODCVerbose.Full, f"Walker alive : {walker_alive} ({(walker_alive - prev_walker_alive) / refresh_rate:+} walker/s)")
+            self.printv(
+                ODCVerbose.Full,
+                f"Walker alive : {walker_alive} ({
+                    (walker_alive - prev_walker_alive) / refresh_rate:+} walker/s)",
+            )
             prev_walker_alive = walker_alive
             iter_count = ODCWalker.iter_count
             iter_speed = (iter_count - prev_iter_count) / refresh_rate
             avg_iter_speed.append(iter_speed)
-            self.printv(ODCVerbose.Normal, f"Iterations : {iter_count} ({iter_speed:} iterations/s)")
+            self.printv(
+                ODCVerbose.Normal,
+                f"Iterations : {iter_count} ({iter_speed:} iterations/s)",
+            )
             prev_iter_count = iter_count
             self._done.wait(timeout=refresh_rate)
             self.erasev(ODCVerbose.Mini, 1)
@@ -116,26 +135,61 @@ class odc:
         self.erasev(ODCVerbose.Mini, 1)
         runner.join()
         self.printv(ODCVerbose.Mini, "Stats :")
-        self.printv(ODCVerbose.Mini, f"  Elapsed time : {str(datetime.now() - started).split('.')[0]}")
+        self.printv(
+            ODCVerbose.Mini,
+            f"  Elapsed time : {str(datetime.now() - started).split('.')[0]}",
+        )
         self.printv(ODCVerbose.Full, f"  Walkers : {ODCWalker.walker_number}")
-        self.printv(ODCVerbose.Full, f"    avg. growth : {sum(avg_walker_growth) / max(len(avg_walker_growth), 1):+.2f} walker/s")
-        self.printv(ODCVerbose.Full, f"    avg. alive  : {sum(avg_walker_alive) / max(len(avg_walker_alive), 1):.2f} walker")
+        self.printv(
+            ODCVerbose.Full,
+            f"    avg. growth : {
+                sum(avg_walker_growth) / max(len(avg_walker_growth), 1):+.2f} walker/s",
+        )
+        self.printv(
+            ODCVerbose.Full,
+            f"    avg. alive  : {
+                sum(avg_walker_alive) / max(len(avg_walker_alive), 1):.2f} walker",
+        )
         self.printv(ODCVerbose.Normal, f"  Iterations : {ODCWalker.iter_count}")
-        self.printv(ODCVerbose.Normal, f"    avg. speed  : {sum(avg_iter_speed) / max(len(avg_iter_speed), 1):.2f} iteration/s")
-        self.printv(ODCVerbose.Full, f"    it. per w.  : {ODCWalker.iter_count/max(ODCWalker.walker_number, 1):.2f} iteration/walker")
+        self.printv(
+            ODCVerbose.Normal,
+            f"    avg. speed  : {
+                sum(avg_iter_speed) / max(len(avg_iter_speed), 1):.2f} iteration/s",
+        )
+        self.printv(
+            ODCVerbose.Full,
+            f"    it. per w.  : {
+                ODCWalker.iter_count
+                / max(ODCWalker.walker_number, 1):.2f} iteration/walker",
+        )
         self.printv(ODCVerbose.Mini, f"  Results: {len(self._db)} flip-flops")
         functions = [f for f in self._db.values() if f.function != S.true]
         activation = len(functions)
-        self.printv(ODCVerbose.Mini, f"    With activation: {activation} flip-flops ({activation*100/max(len(self._db), 1):.2f}%)")
-        self.printv(ODCVerbose.Normal, f"    Simplified: {self._db.opti} functions out of {
-              activation} ({self._db.opti*100/max(activation, 1):.2f}%)")
-        self.printv(ODCVerbose.Mini, f"    Variables removed: {self._db.variables_removed}")
+        self.printv(
+            ODCVerbose.Mini,
+            f"    With activation: {activation} flip-flops ({
+                activation * 100 / max(len(self._db), 1):.2f}%)",
+        )
+        self.printv(
+            ODCVerbose.Normal,
+            f"    Simplified: {self._db.opti} functions out of {activation} ({
+                self._db.opti * 100 / max(activation, 1):.2f}%)",
+        )
+        self.printv(
+            ODCVerbose.Mini, f"    Variables removed: {self._db.variables_removed}"
+        )
         nb_var = [len(f.function.atoms()) for f in functions]
-        self.printv(ODCVerbose.Full, f"    Avg. variables: {sum(nb_var)/max(len(nb_var), 1):.2f}")
+        self.printv(
+            ODCVerbose.Full,
+            f"    Avg. variables: {sum(nb_var) / max(len(nb_var), 1):.2f}",
+        )
         if len(nb_var) > 0:
             self.printv(ODCVerbose.Full, f"    Max. variables: {max(nb_var)}")
             self.printv(ODCVerbose.Full, f"    Min. variables: {min(nb_var)}")
-        self.printv(ODCVerbose.Mini, f"    Est. impact on cells: {self._db.compute_estimate()*100:.2f}%")
+        self.printv(
+            ODCVerbose.Mini,
+            f"    Est. impact on cells: {self._db.compute_estimate() * 100:.2f}%",
+        )
         # self.printv(ODCVerbose.Mini, "Iteration repartition")
         # for index, count in enumerate(ODCWalker.iter_rep):
         #     self.printv(ODCVerbose.Mini, f"{index}: {count}")

@@ -128,8 +128,14 @@ class FFDatabase:
 
     def compute_functions(self):
         from .odc import ODCVerbose
+
         for i, entry in enumerate(self._ff.values()):
-            self.odc.printv(ODCVerbose.Normal, f"{i}/{len(self._ff)} ({i*100/len(self._ff):.2f}%), {self.opti} optimizations found")
+            self.odc.printv(
+                ODCVerbose.Normal,
+                f"{i}/{len(self._ff)} ({i * 100 / len(self._ff):.2f}%), {
+                    self.opti
+                } optimizations found",
+            )
             if entry.function == S.true:
                 entry.functions.clear()
                 entry.no_opti = S.true
@@ -138,7 +144,9 @@ class FFDatabase:
             optimize_FFEntry(entry)
             if entry.function != entry.no_opti:
                 self.opti += 1
-                self.variables_removed += len(entry.no_opti.atoms()) - len(entry.function.atoms())
+                self.variables_removed += len(entry.no_opti.atoms()) - len(
+                    entry.function.atoms()
+                )
             self.odc.erasev(ODCVerbose.Normal)
 
     def compute_estimate(self):
@@ -150,5 +158,5 @@ class FFDatabase:
                     results[cell].append(affected)
                 except KeyError:
                     results[cell] = [affected]
-        calc_results = [sum(i)/len(i) for i in results.values()]
-        return sum(calc_results)/len(calc_results)
+        calc_results = [sum(i) / len(i) for i in results.values()]
+        return sum(calc_results) / len(calc_results)
