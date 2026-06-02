@@ -22,7 +22,80 @@ from sympy import S
 
 from .CellODCCache import CellODCCache
 from .FFDatabase import FFDatabase
-from .ODCWalker import ODCWalker
+from .ODCWalker import ODCWalker, isHierarchical
+
+
+def ODCselector(cell, top=True):
+    first = True
+    help = """Commandes:
+  run nb [output_name]: run odc on circuit nb in list.
+  list : list instances in current circuit.
+  help : print this message.
+  exit : exit the selector.
+  back : go back one level
+  open nb : open circuit nb."""
+    if top:
+        print(help)
+    cells = [cell]
+    for inst in cell.getInstances():
+        if isHierarchical(inst):
+            cells.append(inst.getMasterCell())
+    while True:
+        if first:
+            for nb, c in enumerate(cells):
+                if nb == 0:
+                    print(f"[{nb}] {c.getName()} (current)")
+                else:
+                    print(f"[{nb}] {c.getName()}")
+            first = False
+        sel = input(": ")
+        if sel == "exit":
+            return True
+        elif sel == "list":
+            for nb, c in enumerate(cells):
+                if nb == 0:
+                    print(f"[{nb}] {c.getName()} (current)")
+                else:
+                    print(f"[{nb}] {c.getName()}")
+        elif sel == "back":
+            return False
+        elif sel == "help":
+            print(help)
+        elif len(sel) >= len("open") and sel[0 : len("open")] == "open":
+            if len(sel) <= len("open") + 1:
+                print("Usage: run nb. See 'help' for details.")
+                continue
+            if int(sel[len("open") + 1 :]) == 0:
+                print("Circuit 0 is the one currently opened.")
+                continue
+            try:
+                if ODCselector(cells[int(sel[len("open") + 1 :])], False):
+                    return True
+            except IndexError:
+                print(f"Circuit {sel} not in list. try 'list'.")
+            for nb, c in enumerate(cells):
+                if nb == 0:
+                    print(f"[{nb}] {c.getName()} (current)")
+                else:
+                    print(f"[{nb}] {c.getName()}")
+        elif len(sel) >= len("run") and sel[0 : len("run")] == "run":
+            args = sel.split(" ")
+            if len(args) < 2:
+                print("Usage: run nb [output_name]. See 'help' for details.")
+                continue
+            try:
+                odc_util = odc(cells[int(args[1])])
+            except IndexError:
+                print(f"Circuit {sel} not in list. try 'list'.")
+                continue
+            if len(args) < 3:
+                output_name = f"{cells[int(args[1])].getName()}.odc"
+            else:
+                output_name = f"{args[2]}.odc"
+            odc_util.computeODC()
+            odc_util.save_to_file(filename=output_name)
+        else:
+            print(f"Command '{sel}' not found. try 'help'.")
 
 
 class ODCVerbose:
