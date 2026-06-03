@@ -61,6 +61,7 @@ class ODCWalker:
         from_plug=False,
         plug: Plug = None,
         function=S.true,
+        traveler=False,  # means no functions written
     ):
         ODCWalker.walker_number += 1
 
@@ -79,7 +80,8 @@ class ODCWalker:
             self._todo = todo
             self._path = list()
             self._depth = list()
-        else:  # we need to do a deep copy because this is a child of another walker.
+            self._traveler = traveler
+        else:
             self._cache = other._cache  # not a copy
             self._from_plug = from_plug
             self._function = And(function, other._function)
@@ -89,6 +91,7 @@ class ODCWalker:
             self._todo = other._todo  # not a copy
             self._path = list(other._path)
             self._depth = list(other._depth)
+            self._traveler = other._traveler
 
     def fork(self, net: Net = None, plug: Plug = None, function=S.true):
         if net:
@@ -154,13 +157,14 @@ class ODCWalker:
                     master_net.getName()
                 ]
                 == S.true
+                and not self._traveler  # if we travel we do not want to stop
             ):
                 if generateDepthName(net, self._depth) in self._results.nets_true:
                     continue
                 else:
                     self._results.nets_true.add(generateDepthName(net, self._depth))
             if first:
-                if odc_info.isSteering:
+                if odc_info.isSteering and not self._traveler:
                     ext_expr = replaceSymbols(
                         odc_info._observability[master_output.getName()][
                             master_net.getName()
@@ -172,7 +176,7 @@ class ODCWalker:
                 first = False
             else:
                 function = S.true
-                if odc_info.isSteering:
+                if odc_info.isSteering and not self._traveler:
                     ext_expr = replaceSymbols(
                         odc_info._observability[master_output.getName()][
                             master_net.getName()
