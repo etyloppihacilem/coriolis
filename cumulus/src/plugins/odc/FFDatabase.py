@@ -85,7 +85,7 @@ class FFEntry:
 
 
 class FFDatabase:
-    def __init__(self, odc):
+    def __init__(self, odc, selection):
         self._ff: dict[str, FFEntry] = {}
         self._ffs: set[str] = set()
         self._len = 0
@@ -94,6 +94,7 @@ class FFDatabase:
         self.variables_removed = 0
         self.odc = odc
         self.path_ff: dict[int, set[str]] = {}
+        self.selection = selection
 
     def __contains__(self, cell):
         if type(cell) is Cell:
@@ -107,20 +108,28 @@ class FFDatabase:
         ff_name = generateDepthName(ff, depth)
         if ff_name in self._ffs:
             self.path_ff[ff_name].update(path)
-            old_entry = self._ff[ff_name]
-            if old_entry.function == S.true or function == S.true:
-                old_entry.function = S.true
-                return True
-            old_entry.functions.append(function)
+            if not self.selection or ff.getName() in self.selection:
+                old_entry = self._ff[ff_name]
+                if old_entry.function == S.true or function == S.true:
+                    old_entry.function = S.true
+                    return True
+                old_entry.functions.append(function)
             return True  # return true if walker should stop
         else:
             self._ffs.add(ff_name)
-            entry = FFEntry()
-            entry.function = function
-            entry.functions.append(function)
-            entry.name = ff_name
-            self._ff[ff_name] = entry
             self.path_ff[ff_name] = set(path)
+            if not self.selection or ff.getName() in self.selection:
+                entry = FFEntry()
+                entry.function = function
+                entry.functions.append(function)
+                entry.name = ff_name
+                self._ff[ff_name] = entry
+            else:
+                entry = FFEntry()
+                entry.function = S.true
+                entry.functions.append(S.true)
+                entry.name = ff_name
+                self._ff[ff_name] = entry
         return False
 
     def items(self):
