@@ -89,7 +89,7 @@ def ODCselector(cell, top=None):
         elif len(sel) >= len("run") and sel[0 : len("run")] == "run":
             args = sel.split(" ")
             if len(args) < 2:
-                output_name = f"{cell.getName()}_odc.json"
+                output_name = f"{top.getName()}_odc.json"
             else:
                 output_name = f"{args[1]}_odc.json"
             top.computeODC()
