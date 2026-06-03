@@ -13,7 +13,7 @@
 
 from collections import OrderedDict
 from datetime import datetime
-from enum import Enum
+import json
 from queue import LifoQueue
 from threading import Event, Thread
 
@@ -28,7 +28,7 @@ from .ODCWalker import ODCWalker, isHierarchical
 def ODCselector(cell, top=True):
     first = True
     help = """Commandes:
-  run nb [output_name]: run odc on circuit nb in list.
+  run nb [output_name]: run odc on circuit nb in list. Will write in file output_name_odc.json
   list : list instances in current circuit.
   help : print this message.
   exit : exit the selector.
@@ -89,9 +89,9 @@ def ODCselector(cell, top=True):
                 print(f"Circuit {sel} not in list. try 'list'.")
                 continue
             if len(args) < 3:
-                output_name = f"{cells[int(args[1])].getName()}.odc"
+                output_name = f"{cells[int(args[1])].getName()}_odc.json"
             else:
-                output_name = f"{args[2]}.odc"
+                output_name = f"{args[2]}_odc.json"
             odc_util.computeODC()
             odc_util.save_to_file(filename=output_name)
         else:
@@ -271,12 +271,17 @@ class odc:
         ODCWalker.iter_count = 0
         ODCWalker.iter_rep = list()
 
-    def save_to_file(self, filename="odc_results.odc"):
+    def save_to_file(self, filename="odc_results.json"):
         if not self._done.is_set():
             print("[ERROR] ODC was not calculated yet, can not save to file.")
         results = OrderedDict(sorted(self._db.items(), key=lambda item: item[0]))
         with open(filename, "w") as f:
-            for value in results.values():
-                f.write(f"{value.name}: {value.function}\n")
-                # f.write(f"{value.name}: {value.no_opti}\n\n")
+            f.write(
+                json.dumps(
+                    {
+                        "circuit": self._cell.getName(),
+                        "odc_results": [v.as_dict() for v in results.values()],
+                    }
+                )
+            )
         self.printv(ODCVerbose.Normal, f"ODC results saved to {filename}")

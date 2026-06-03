@@ -11,10 +11,8 @@
 # |  Python      :   "./plugins/odc/FFDatabase.py"                  |
 # +-----------------------------------------------------------------+
 
-from queue import Queue
-
 from coriolis.Hurricane import Cell
-from sympy import Not, Or, S, simplify_logic
+from sympy import Not, Or, S, simplify_logic, srepr
 
 from .CellODC import CellODC
 
@@ -76,6 +74,14 @@ class FFEntry:
 
     def __str__(self):
         return f"{self.name}: {self.function}"
+
+    def as_dict(self):
+        return {
+            "name": self.name,
+            "function": str(self.function),
+            # "function_no_opti": str(self.no_opti),
+            "function_sympy": srepr(self.function),
+        }
 
 
 class FFDatabase:
