@@ -18,7 +18,7 @@ from .CellODC import CellODC
 
 
 def generateDepthName(ff, depth):
-    if len(depth) > 0:
+    if depth is not None and len(depth) > 0:
         return ff.getName() + "." + ".".join([c.getName() for c in depth])
     else:
         return ff.getName()
@@ -71,16 +71,22 @@ class FFEntry:
         self.functions = list()
         self.is_true = False
         self.name: str = ""
+        self.base_name: str = ""
+        self.depth: list = None
+        self.selected = False
 
     def __str__(self):
         return f"{self.name}: {self.function}"
 
     def as_dict(self):
         return {
-            "name": self.name,
-            "function": str(self.function),
+            "name": self.base_name,
+            # "function": str(self.function),
             # "function_no_opti": str(self.no_opti),
             "function_sympy": srepr(self.function),
+            "depth": [i.getName() for i in self.depth]
+            if self.depth is not None
+            else None,
         }
 
 
@@ -114,6 +120,7 @@ class FFDatabase:
                     old_entry.function = S.true
                     return True
                 old_entry.functions.append(function)
+                old_entry.selected = True
             return True  # return true if walker should stop
         else:
             self._ffs.add(ff_name)
@@ -123,12 +130,17 @@ class FFDatabase:
                 entry.function = function
                 entry.functions.append(function)
                 entry.name = ff_name
+                entry.base_name = ff.getName()
+                entry.depth = list(depth)
+                entry.selected = True
                 self._ff[ff_name] = entry
             else:
                 entry = FFEntry()
                 entry.function = S.true
                 entry.functions.append(S.true)
                 entry.name = ff_name
+                entry.base_name = ff.getName()
+                entry.depth = list(depth)
                 self._ff[ff_name] = entry
         return False
 
