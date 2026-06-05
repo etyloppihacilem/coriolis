@@ -135,6 +135,7 @@ class odc:
         self._cache: CellODCCache = CellODCCache()
         self._done: Event = Event()
         self._net_db = []
+        self.nets_pairs = []
         self.verbose = ODCVerbose(verbose, erase)
 
     def printv(self, verbose, *args, **kwargs):
@@ -148,7 +149,7 @@ class odc:
     def clear_selection(self):
         self._selection.clear()
 
-    def run_travel(self, cell, net_db, ffs_db):
+    def run_travel(self, cell, net_db, ffs_db, nets_pairs=None):
         self._done.clear()
         _cells_db = set()
         for net in cell.getExternalNets():
@@ -161,6 +162,7 @@ class odc:
                         cache=self._cache,
                         net_db=net_db,
                         ffs=ffs_db,
+                        nets_pairs=nets_pairs,
                     )
                 )
         try:
@@ -211,7 +213,10 @@ class odc:
         self.printv(ODCVerbose.Normal, f"Correspondances of {self._cell.getName()}")
         started = datetime.now()
         self.printv(ODCVerbose.Normal, f"Starting at {str(started).split('.')[0]}")
-        runner = Thread(target=self.run_travel, args=(self._cell, self._net_db, None))
+        runner = Thread(
+            target=self.run_travel,
+            args=(self._cell, self._net_db, None, self.nets_pairs),
+        )
         runner.start()
         self.printv(ODCVerbose.Normal, f"Stats (live, refresh every {refresh_rate}s) :")
         while not self._done.is_set():
@@ -236,6 +241,7 @@ class odc:
             f"  Elapsed time : {str(datetime.now() - started).split('.')[0]}",
         )
         self.printv(ODCVerbose.Mini, f"  Results: {len(self._net_db)} correspondances")
+        self.printv(ODCVerbose.Mini, f"  Nets pairs: {len(self.nets_pairs)} pairs")
         self.printv(ODCVerbose.Mini, "Correspondances done.")
 
     def run_odc(self):
@@ -393,7 +399,11 @@ class odc:
                 json.dumps(
                     {
                         "circuit": self._cell.getName(),
-                        "odc_results": [v.as_dict() for v in results.values() if v.function != S.true],
+                        "odc_results": [
+                            v.as_dict()
+                            for v in results.values()
+                            if v.function != S.true
+                        ],
                     }
                 )
             )
@@ -404,6 +414,17 @@ class odc:
         nets = set()
         for entry in self._db.values():
             nets |= set([str(s) for s in entry.function.atoms()])
+        group1 = set([i[0].getName() for i in self.nets_pairs])
+        group2 = set([i[1].getName() for i in self.nets_pairs])
+        group1_corr = {i[0].getName(): i[1].getName() for i in self.nets_pairs}
+        group2_corr = {i[1].getName(): i[0].getName() for i in self.nets_pairs}
+        to_add = set()
+        for n in nets:
+            if n in group1:
+                to_add.add(group1_corr[n])
+            elif n in group2:
+                to_add.add(group2_corr[n])
+        nets |= to_add
         selected = []
         for infos in self._net_db:
             if infos["net"] in nets:
