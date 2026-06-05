@@ -16,7 +16,6 @@ from queue import LifoQueue
 from coriolis.Hurricane import Net, Plug
 
 from .CellODCCache import CellODCCache
-from .FFDatabase import generateDepthName
 from .ODCWalker import isHierarchical
 
 
@@ -32,6 +31,7 @@ class FastWalker:
         net_db=None,
         cells_db=None,
         ffs=None,
+        nets_pairs=None,
     ):
         if net is None and plug is None:
             raise AttributeError
@@ -49,6 +49,7 @@ class FastWalker:
             self._net_db = net_db
             self._cells_db = cells_db
             self._ffs = ffs
+            self.nets_pairs = nets_pairs
         else:
             self._cache = other._cache  # not a copy
             self._from_plug = from_plug
@@ -60,6 +61,7 @@ class FastWalker:
             self._net_db = other._net_db
             self._cells_db = other._cells_db
             self._ffs = other._ffs
+            self.nets_pairs = other.nets_pairs
 
     def fork(self, net: Net = None, plug: Plug = None):
         if net:
@@ -82,6 +84,8 @@ class FastWalker:
             upper_plug = instance_frontiere.getPlug(self._net)
             if upper_plug:
                 self._net = upper_plug.getNet()
+                if self.nets_pairs is not None:
+                    self.nets_pairs.append((self._net, upper_plug.getMasterNet()))
             else:
                 print("[WARNING] FastWalker could not get out of hierarchical cell.")
                 return
@@ -140,6 +144,8 @@ class FastWalker:
             if isHierarchical(instance):
                 self._depth.append(instance)
                 internalNet = self._plug.getMasterNet()
+                if self.nets_pairs is not None:
+                    self.nets_pairs.append((self._plug.getNet(), internalNet))
                 self._net = internalNet
                 self._plug = None
                 continue  # we are traveling to internal net, not over plugs
