@@ -109,7 +109,7 @@ class FastWalker:
             if self._net_db is not None:
                 self._net_db.append(
                     {
-                        "depth": "/".join([i.getName() for i in self._depth]),
+                        "depth": [i.getName() for i in self._depth],
                         "name": instance.getName(),
                         "io": master_net.getName(),
                         "net": net.getName(),

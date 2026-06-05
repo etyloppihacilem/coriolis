@@ -344,6 +344,13 @@ class odc:
                 / max(ODCWalker.walker_number, 1):.2f} iteration/walker",
         )
         self.printv(ODCVerbose.Mini, f"  Results: {len(self._db)} flip-flops")
+        selected = [f for f in self._db.values() if f.selected]
+        selection = len(selected)
+        self.printv(
+            ODCVerbose.Mini,
+            f"    Selected: {selection} flip-flops ({
+                selection * 100 / max(len(self._db), 1):.2f}%)",
+        )
         functions = [f for f in self._db.values() if f.function != S.true]
         activation = len(functions)
         self.printv(
@@ -386,7 +393,7 @@ class odc:
                 json.dumps(
                     {
                         "circuit": self._cell.getName(),
-                        "odc_results": [v.as_dict() for v in results.values()],
+                        "odc_results": [v.as_dict() for v in results.values() if v.function != S.true],
                     }
                 )
             )
