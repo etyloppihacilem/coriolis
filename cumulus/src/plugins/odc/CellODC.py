@@ -34,6 +34,8 @@ def lib_expr_parsing(expression: str, pins: dict[str, S]):
 
 
 class CellODC:
+    grp_extract = re.compile(r"\((.*)\)")
+
     def __init__(self, cell: Cell):
         try:
             master_cell = cell.getMasterCell()
@@ -58,7 +60,7 @@ class CellODC:
         # adding pins to list
         pins = grp.getGroups("pin.*")
         for pin in pins:
-            pin_name = re.search(r"\((.*)\)", pin.getGroupName()).group(1)
+            pin_name = CellODC.grp_extract.search(pin.getGroupName()).group(1)
             pin_direction = pin.getAttribute("direction").getValue()
             self._pins_direction[pin_name] = pin_direction
         local_dict = {
@@ -66,7 +68,7 @@ class CellODC:
         }
 
         for pin in pins:
-            pin_name = re.search(r"\((.*)\)", pin.getGroupName()).group(1)
+            pin_name = CellODC.grp_extract.search(pin.getGroupName()).group(1)
             pin_direction = self._pins_direction[pin_name]
             if pin_direction == "output":
                 function = pin.getAttribute("function")
