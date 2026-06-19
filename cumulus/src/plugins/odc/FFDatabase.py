@@ -110,11 +110,13 @@ class FFDatabase:
     def __getitem__(self, key):
         return self._ff[key]
 
-    def addNewFF(self, ff: Cell, ff_info: CellODC, function, path, depth):
+    def addNewFF(self, ff: Cell, ff_info: CellODC, function, path, depth, force_selected: bool = False):
         ff_name = generateDepthName(ff, depth)
         if ff_name in self._ffs:
             self.path_ff[ff_name].update(path)
-            if not self.selection or ff.getName() in self.selection:
+            if force_selected or not self.selection or ff.getName() in self.selection:
+                # if not self.selection or ff.getName() in self.selection:
+                #     print(f"Selected {force_selected} {not self.selection} {ff.getName() in self.selection}")
                 old_entry = self._ff[ff_name]
                 if old_entry.function == S.true or function == S.true:
                     old_entry.function = S.true
@@ -125,7 +127,7 @@ class FFDatabase:
         else:
             self._ffs.add(ff_name)
             self.path_ff[ff_name] = set(path)
-            if not self.selection or ff.getName() in self.selection:
+            if force_selected or not self.selection or ff.getName() in self.selection:
                 entry = FFEntry()
                 entry.function = function
                 entry.functions.append(function)
@@ -185,5 +187,7 @@ class FFDatabase:
                     results[cell].append(affected)
                 except KeyError:
                     results[cell] = [affected]
-        calc_results = [sum(i) / len(i) for i in results.values()]
+        calc_results = [sum(i) / len(i) if len(i) > 0 else 0 for i in results.values()]
+        if len(calc_results) == 0:
+            return 0
         return sum(calc_results) / len(calc_results)

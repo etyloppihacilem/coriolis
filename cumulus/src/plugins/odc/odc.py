@@ -11,9 +11,10 @@
 # |  Python      :   "./plugins/odc/odc.py"                         |
 # +-----------------------------------------------------------------+
 
+import json
+import re
 from collections import OrderedDict
 from datetime import datetime
-import json
 from queue import LifoQueue
 from threading import Event, Thread
 
@@ -21,12 +22,38 @@ from coriolis.Hurricane import Cell, Net
 from sympy import S
 
 from .CellODCCache import CellODCCache
-from .FFDatabase import FFDatabase
 from .FastWalker import FastWalker
+from .FFDatabase import FFDatabase
 from .ODCWalker import ODCWalker, isHierarchical
 
+flatten_re = re.compile(r"(?<![$\w])(\w+\.)")
 
-def ODCselector(cell, commands=[], top=None):
+
+def ODCselector(cell, commands=[], top=None, is_flat=False):
+    help = """Commandes:
+  run [output_name] : run odc on top level circuit. Will write in file output_name_odc.json
+  select nb : selects circuit nb for odc.
+  reset : resets selection.
+  list : list instances in current circuit.
+  help : print this message.
+  exit : exit the selector.
+  back : go back one level.
+  set option : set an option.
+  open nb : open circuit nb."""
+    cells = []
+    for inst in cell.getInstances():
+        if isHierarchical(inst):
+            cells.append(inst.getMasterCell())
+    if top is None and len(cells) == 0:
+        is_flat = True
+        cells_set = set()
+        for net in cell.getNets():
+            if not net.isExternal():
+                net_name = net.getName()
+                matched = flatten_re.findall(net_name)
+                cells_set.update(set(matched))
+        cells = sorted(list(cells_set))
+
     if top is None:
         if len(commands) == 0:
             commands.insert(0, "list")
@@ -36,20 +63,6 @@ def ODCselector(cell, commands=[], top=None):
         top = odc(cell)
     else:
         commands.insert(0, "list")
-    help = """Commandes:
-  run [output_name] : run odc on top level circuit. Will write in file output_name_odc.json
-  select nb : selects circuit nb for odc.
-  reset : resets selection.
-  list : list instances in current circuit.
-  help : print this message.
-  exit : exit the selector.
-  back : go back one level
-  nets : print nets.
-  open nb : open circuit nb."""
-    cells = []
-    for inst in cell.getInstances():
-        if isHierarchical(inst):
-            cells.append(inst.getMasterCell())
     while True:
         if len(commands) > 0:
             sel = commands.pop(0)
@@ -59,28 +72,31 @@ def ODCselector(cell, commands=[], top=None):
         if sel == "exit":
             return True
         elif sel == "list":
-            for nb, c in enumerate(cells):
-                print(f"[{nb}] {c.getName()}")
+            if is_flat:
+                for nb, c in enumerate(cells):
+                    print(f"[{nb}] {c}")
+            else:
+                for nb, c in enumerate(cells):
+                    print(f"[{nb}] {c.getName()}")
         elif sel == "back":
             return False
         elif sel == "help":
             print(help)
         elif sel == "reset":
             top.clear_selection()
-        elif len(sel) >= len("nets") and sel[0 : len("nets")] == "nets":
-            args = sel.split(" ")
-            if len(args) < 2:
-                output_name = f"{top.getName()}_correspondance.json"
-            else:
-                output_name = f"{args[1]}_correspondance.json"
-            top.generate_net_to_plug(filename=output_name)
         elif len(sel) >= len("open") and sel[0 : len("open")] == "open":
+            if is_flat:
+                print("Cannot open flat design.")
+                continue
             if len(sel) <= len("open") + 1:
                 print("Usage: open nb. See 'help' for details.")
                 continue
             try:
                 if ODCselector(
-                    cells[int(sel[len("open") + 1 :])], commands=commands, top=top
+                    cells[int(sel[len("open") + 1 :])],
+                    commands=commands,
+                    top=top,
+                    is_flat=is_flat,
                 ):
                     return True
             except IndexError:
@@ -92,6 +108,11 @@ def ODCselector(cell, commands=[], top=None):
             if len(sel) <= len("select") + 1:
                 print("Usage: select nb. See 'help' for details.")
                 continue
+            if is_flat:
+                top.set_flat_select(cells[int(sel[len("select") + 1 :])])
+                print(f"Selecting {cells[int(sel[len('select') + 1 :])]}")
+                continue
+            # non flat design
             try:
                 top.select(cells[int(sel[len("select") + 1 :])])
             except IndexError:
@@ -101,11 +122,22 @@ def ODCselector(cell, commands=[], top=None):
         elif len(sel) >= len("run") and sel[0 : len("run")] == "run":
             args = sel.split(" ")
             if len(args) < 2:
-                output_name = f"{top.getName()}_odc.json"
+                output_name = f"{top._cell.getName()}_odc.json"
             else:
                 output_name = f"{args[1]}_odc.json"
             top.computeODC()
             top.save_to_file(filename=output_name)
+        elif len(sel) >= len("set") and sel[0 : len("set")] == "set":
+            args = sel.split(" ")
+            if len(args) < 2:
+                print("Missing option name")
+                continue
+            if args[1] == "no_erase":
+                print("Disabling line erasing.")
+                top.verbose.erase(False)
+            elif args[1] == "erase":
+                print("Enabling line erasing.")
+                top.verbose.erase(True)
         else:
             print(f"Command '{sel}' not found. try 'help'.")
 
@@ -137,6 +169,7 @@ class odc:
         self._net_db = []
         self.nets_pairs = []
         self.verbose = ODCVerbose(verbose, erase)
+        self.flat_select = []
 
     def printv(self, verbose, *args, **kwargs):
         if self.verbose.val >= verbose:
@@ -148,6 +181,7 @@ class odc:
 
     def clear_selection(self):
         self._selection.clear()
+        self.flat_select.clear()
 
     def run_travel(self, cell, net_db, ffs_db, nets_pairs=None):
         self._done.clear()
@@ -208,6 +242,13 @@ class odc:
         self._selection |= selected_ffs
         self.printv(ODCVerbose.Mini, "Selection done.")
 
+    def set_flat_select(self, regex_str):
+        # activate hierarchical selection path without selecting anything in that way
+        self._selection.add("")
+        regex_str = regex_str.replace(".", "\\.")  # we want to match '.' and not any char
+        regex = re.compile(regex_str)
+        self.flat_select.append(regex)
+
     def get_all_nets(self, refresh_rate=2):
         assert refresh_rate > 0
         self.printv(ODCVerbose.Normal, f"Correspondances of {self._cell.getName()}")
@@ -253,7 +294,11 @@ class odc:
             if net.getDirection() == Net.Direction.OUT:
                 self._todo.put(
                     ODCWalker(
-                        net=net, todo=self._todo, results=self._db, cache=self._cache
+                        net=net,
+                        todo=self._todo,
+                        results=self._db,
+                        cache=self._cache,
+                        flat_select=self.flat_select,
                     )
                 )
         try:
@@ -408,28 +453,3 @@ class odc:
                 )
             )
         self.printv(ODCVerbose.Normal, f"ODC results saved to {filename}")
-
-    def generate_net_to_plug(self, filename="nets_correspondance.json"):
-        self.get_all_nets()
-        nets = set()
-        for entry in self._db.values():
-            nets |= set([str(s) for s in entry.function.atoms()])
-        group1 = set([i[0].getName() for i in self.nets_pairs])
-        group2 = set([i[1].getName() for i in self.nets_pairs])
-        group1_corr = {i[0].getName(): i[1].getName() for i in self.nets_pairs}
-        group2_corr = {i[1].getName(): i[0].getName() for i in self.nets_pairs}
-        to_add = set()
-        for n in nets:
-            if n in group1:
-                to_add.add(group1_corr[n])
-            elif n in group2:
-                to_add.add(group2_corr[n])
-        nets |= to_add
-        selected = []
-        for infos in self._net_db:
-            if infos["net"] in nets:
-                selected.append(infos)
-        if len(selected) < len(nets):
-            print("[WARNING] found less nets than there is variables.")
-        with open(filename, "w") as f:
-            f.write(json.dumps(selected, indent=2))

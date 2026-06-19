@@ -17,7 +17,7 @@ from coriolis.Hurricane import Cell, Instance, Net, Plug
 from sympy import And, S, Symbol
 
 from .CellODCCache import CellODCCache
-from .FFDatabase import FFDatabase, generateDepthName
+from .FFDatabase import generateDepthName
 
 
 def getSymbolsMap(instance):
@@ -61,6 +61,7 @@ class ODCWalker:
         from_plug=False,
         plug: Plug = None,
         function=S.true,
+        flat_select=None,
     ):
         ODCWalker.walker_number += 1
 
@@ -79,6 +80,7 @@ class ODCWalker:
             self._todo = todo
             self._path = list()
             self._depth = list()
+            self._flat_select = flat_select
         else:
             self._cache = other._cache  # not a copy
             self._from_plug = from_plug
@@ -89,6 +91,7 @@ class ODCWalker:
             self._todo = other._todo  # not a copy
             self._path = list(other._path)
             self._depth = list(other._depth)
+            self._flat_select = other._flat_select
 
     def fork(self, net: Net = None, plug: Plug = None, function=S.true):
         if net:
@@ -100,6 +103,14 @@ class ODCWalker:
         else:
             print("[ERROR] Calling fork for ODCWalker with no args")
             raise AttributeError
+
+    def check_is_inside(self):
+        net = self._plug.getNet()
+        for regex in self._flat_select:
+            matched = regex.search(net.getName())
+            if matched:
+                return True
+        return False
 
     def iterate_over_net(self):
         self._plug = None
@@ -198,6 +209,9 @@ class ODCWalker:
                 self._from_plug = False
             # All plugs explored
             instance = self._plug.getInstance()
+            force_selected = False
+            if (self._flat_select):
+                force_selected = self.check_is_inside()
             if isHierarchical(instance):
                 self._depth.append(instance)
                 internalNet = self._plug.getMasterNet()
@@ -211,7 +225,12 @@ class ODCWalker:
             # Encounters FF
             if odc_info.isFlipflop:
                 stop_there = self._results.addNewFF(
-                    instance, odc_info, self._function, self._path, self._depth
+                    instance,
+                    odc_info,
+                    self._function,
+                    self._path,
+                    self._depth,
+                    force_selected,
                 )
                 if stop_there:
                     instance = None
