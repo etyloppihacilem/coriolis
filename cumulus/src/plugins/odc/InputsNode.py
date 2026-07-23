@@ -23,11 +23,11 @@ class InputsNode:
         self.children_net = {}
         for parent, net in getParents(self.instance):
             if parent is None:
-                graph.inputs_nets.add(HurricaneHashasble(net))
+                graph.input_nets.add(HurricaneHashasble(net))
                 continue
             parent_info = graph.info_cache[parent]
             if parent_info.isFlipflop:
-                graph.inputs_nets.add(HurricaneHashasble(net))
+                graph.input_nets.add(HurricaneHashasble(net))
                 continue
             new_node = graph.add_node(parent)
             self.parents.append(new_node)

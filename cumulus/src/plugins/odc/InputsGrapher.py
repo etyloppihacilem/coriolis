@@ -8,23 +8,19 @@
 # |  Author      :                              Hippolyte MELICA    |
 # |  E-mail      :   hippolyte.melica@etu.sorbonne-universite.fr    |
 # | =============================================================== |
-# |  Python      :   "./plugins/odc/InputsGraph.py"                 |
+# |  Python      :   "./plugins/odc/ODCGraph.py"                    |
 # +-----------------------------------------------------------------+
 
-from .InputsNode import InputsNode
+from .InputsGraph import InputsGraph
 
 
-class InputsGraph:
-    def __init__(self, instance, info_cache, input_nets, node_db):
+class InputsGrapher:
+    def __init__(self, info_cache):
         self.info_cache = info_cache
-        self.input_nets = input_nets
-        self.node_db = node_db
-        self.top = self.add_node(instance)
+        self.node_db = {}
+        self.input_nets = set()
+        self.graphs = []
 
-    def add_node(self, instance):
-        try:
-            return self.node_db[instance.getName()]
-        except KeyError:
-            node = InputsNode(self, instance)
-            self.node_db[instance.getName()] = node
-            return node
+    def graph(self, instance):
+        graph = InputsGraph(instance, self.info_cache, self.input_nets, self.node_db)
+        self.graphs.append(graph)

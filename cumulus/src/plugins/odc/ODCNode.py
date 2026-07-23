@@ -35,6 +35,7 @@ class ODCNode:
             self.children_net[new_node] = net
         self.inputs: dict[str, Net] = {}  # clock or power supply are no input
         # OPTI: is reset an input ?
+        self.is_top = is_top
         if not is_top:
             for plug in self.instance.getPlugs():
                 master_net = plug.getMasterNet()

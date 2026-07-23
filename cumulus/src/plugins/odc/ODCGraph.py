@@ -13,6 +13,7 @@
 
 from .ODCNode import ODCNode
 from .Cuts import CutSetDB, Cut
+from .InputsGrapher import InputsGrapher
 
 
 class ODCGraph:
@@ -27,6 +28,7 @@ class ODCGraph:
         self.d_max = 20
         self.m = 11
         self.n_cap = 35
+        self.max_inputs = 6
         self.cut_db = CutSetDB()
 
     def add_node(self, instance):
@@ -68,6 +70,10 @@ class ODCGraph:
         for cut in cuts:
             cut.computeCutGraph(self.top)
             cut.top.computeInputs()  # normalement il faudrait reculer sur le graphe mais je ne vois pas l'intérêt...
-            if len(self.top.inputs) > self.max_inputs:
+            grapher = InputsGrapher(self.info_cache)
+            for node in cut.top.input_nodes:
+                grapher.graph(node.instance)
+            print(len(grapher.input_nets))
+            if len(grapher.input_nets) > self.max_inputs:
                 discarded += 1
                 continue

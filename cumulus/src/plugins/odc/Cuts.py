@@ -11,7 +11,6 @@
 # |  Python      :   "./plugins/odc/odc.py"                         |
 # +-----------------------------------------------------------------+
 
-from .CutNode import CutNode
 from .ODCNode import ODCNode
 
 
@@ -111,3 +110,31 @@ class CutSetDB:
         tmp = self.cut_sets[top]
         self.cut_sets.clear()
         self.cut_sets[top] = tmp
+
+
+class CutNode:
+    def __init__(self, cut: Cut, node: ODCNode, input_nodes=None):
+        self.node = node
+        self.cut = cut
+        self.end = self.node in self.cut
+        self.inputs = self.node.inputs
+        self.getName = self.node.getName
+        self.inputs = {}
+        if input_nodes is None:
+            self.input_nodes = set()
+        else:
+            self.input_nodes = input_nodes
+        self.children = (
+            [CutNode(self.cut, child, self.input_nodes) for child in self.node.children]
+            if not self.end
+            else []
+        )
+
+    def computeInputs(self):
+        for child in self.children:
+            child.computeInputs()
+            self.inputs |= child.inputs
+        if not self.node.is_top:
+            self.inputs |= self.node.inputs
+            if len(self.node.inputs) > 0:
+                self.input_nodes.add(self.node)

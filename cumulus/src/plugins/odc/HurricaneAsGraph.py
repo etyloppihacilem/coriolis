@@ -78,7 +78,7 @@ def getParents(instance: Instance):
 
 class HurricaneHashasble:
     def __init__(self, obj):
-        self.obj
+        self.obj = obj
 
     def __hash__(self):
-        hash(self.obj.getName())
+        return hash(self.obj.getName())

@@ -35,5 +35,6 @@ class odc:
         #     json.dump(result, f, indent=2, default=lambda o: list(o))
         for graph in result:
             print(f"{graph.top.getName()} :")
+            graph.computeFunctions()
             for cut in graph.getCutSet():
                 print(f"  {cut}")
