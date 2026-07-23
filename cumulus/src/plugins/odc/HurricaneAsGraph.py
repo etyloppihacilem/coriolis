@@ -38,4 +38,12 @@ def getInPlugs(net):
 def getChildren(instance: Cell):
     for net in getOutNets(instance):
         for plug in getInPlugs(net):
-            yield plug.getInstance()
+            yield (plug.getInstance(), net)
+
+
+class HurricaneHashasble:
+    def __init__(self, obj):
+        self.obj
+
+    def __hash__(self):
+        hash(self.obj.getName())

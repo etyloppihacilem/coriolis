@@ -11,6 +11,89 @@
 # |  Python      :   "./plugins/odc/odc.py"                         |
 # +-----------------------------------------------------------------+
 
-class Cuts(set):
+from .ODCNode import ODCNode
+
+
+class Cut:
+    def __init__(self, construct=None):
+        if construct is None:
+            self.border = set()
+            return
+        if type(construct) is ODCNode:
+            self.border = set()
+            self.border.add(construct)
+        else:
+            self.border = set(construct)
+
+    def add(self, node: ODCNode):
+        self.border.add(node)
+
     def __hash__(self):
-        return hash("".join(sorted([e for e in self])))
+        return hash(frozenset(self.border))
+
+    def __or__(self, other):
+        return Cut(self.border | other.border)
+
+    def __len__(self):
+        return len(self.border)
+
+    def __iter__(self):
+        return self.border.__iter__()
+
+    def __repr__(self):
+        return ", ".join([e.getName() for e in self])
+
+
+class CutSet:
+    def __init__(self, construct=None):
+        if construct is None:
+            self.cuts = set()
+            return
+        if type(construct) is ODCNode:
+            self.cuts = set()
+            self.cuts.add(Cut(construct))
+        elif type(construct) is Cut:
+            self.cuts = set()
+            self.cuts.add(construct)
+        else:
+            self.cuts = set(construct)
+
+    def add(self, cut: Cut):
+        self.cuts.add(cut)
+
+    def __mul__(self, other):
+        new = set([c1 | c2 for c1 in self.cuts for c2 in other.cuts])
+        return CutSet(new)
+
+    def __or__(self, other):
+        return CutSet(self.cuts | other.cuts)
+
+    def maxSize(self):
+        return max([len(c) for c in self.cuts])
+
+    def __len__(self):
+        return len(self.cuts)
+
+    def __iter__(self):
+        return self.cuts.__iter__()
+
+
+class CutSetDB:
+    def __init__(self):
+        self.cut_sets = dict()
+
+    def __getitem__(self, key: ODCNode) -> CutSet:
+        try:
+            return self.cut_sets[key]
+        except KeyError:
+            cut_set = CutSet()
+            self.cut_sets[key] = cut_set
+            return cut_set
+
+    def __setitem__(self, key, value: CutSet):
+        if type(value) is Cut:
+            value = CutSet(value)
+        self.cut_sets[key] = value
+
+    def items(self):
+        return self.cut_sets.items()

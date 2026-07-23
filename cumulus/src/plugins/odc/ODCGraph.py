@@ -1,0 +1,60 @@
+# This file is part of the Coriolis Software.
+# Copyright (c) Sorbonne Université 2019-2026, All Rights Reserved
+#
+# +-----------------------------------------------------------------+
+# |                   C O R I O L I S                               |
+# |      C u m u l u s  -  P y t h o n   T o o l s                  |
+# |                     |
+# |  Author      :                              Hippolyte MELICA    |
+# |  E-mail      :   hippolyte.melica@etu.sorbonne-universite.fr    |
+# | =============================================================== |
+# |  Python      :   "./plugins/odc/ODCGraph.py"                    |
+# +-----------------------------------------------------------------+
+
+from .ODCNode import ODCNode
+from .Cuts import CutSetDB, Cut
+
+
+class ODCGraph:
+    def __init__(self, ff, info_cache):
+        self.node_db = {}
+        self.info_cache = info_cache
+        self.top = ODCNode(self, ff)
+        self.cell_info = info_cache[ff]
+        if not self.cell_info.isFlipflop:
+            print("[ERROR] Can not build graph from non-flipflop cell.")
+            raise ValueError
+        self.d_max = 20
+        self.m = 11
+        self.n_cap = 35
+        self.cut_db = CutSetDB()
+
+    def add_node(self, instance):
+        try:
+            return self.node_db[instance.getName()]
+        except KeyError:
+            node = ODCNode(self, instance)
+            self.node_db[instance.getName()] = node
+            return node
+
+    def computeCuts(self):
+        self.getCuts(self.top)
+
+    def getCuts(self, node, level=0):
+        if level > self.d_max or len(node.children) == 0:
+            self.cut_db[node] = Cut(node)
+            return
+        for child in node.children:
+            self.getCuts(child, level + 1)
+        combined = self.cut_db[node.children[0]]
+        for child in node.children[1:]:
+            new_cuts = combined * self.cut_db[child]
+            if new_cuts.maxSize() > self.m or len(new_cuts) > self.n_cap:
+                self.cut_db[node] = Cut(node)
+                return
+            combined = new_cuts
+        combined.add(Cut(node))
+        self.cut_db[node] = combined
+
+    def getCutSet(self):
+        return self.cut_db[self.top]
