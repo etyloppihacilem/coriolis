@@ -58,7 +58,8 @@ class ODCGraph:
                 self.cut_db[node] = Cut(node)  # added in cut set automatically
                 return
             combined = new_cuts
-        combined.add(Cut(node))
+        if level != 0:
+            combined.add(Cut(node))
         self.cut_db[node] = combined
 
     def getCutSet(self):
