@@ -11,15 +11,28 @@
 # |  Python      :   "./plugins/odc/odc.py"                         |
 # +-----------------------------------------------------------------+
 
-from coriolis.Hurricane import Cell, Net
+from coriolis.Hurricane import Instance, Net
 
 
-def getOutNets(instance: Cell):
+def getOutNets(instance: Instance):
     for plug in instance.getPlugs():
         net = plug.getNet()
         master_net = plug.getMasterNet()
         if (
             master_net.getDirection() != Net.Direction.OUT
+            or master_net.isSupply()
+            or master_net.isClock()
+        ):
+            continue
+        yield net
+
+
+def getInNets(instance: Instance):
+    for plug in instance.getPlugs():
+        net = plug.getNet()
+        master_net = plug.getMasterNet()
+        if (
+            master_net.getDirection() != Net.Direction.IN
             or master_net.isSupply()
             or master_net.isClock()
         ):
@@ -35,10 +48,32 @@ def getInPlugs(net):
         yield plug
 
 
-def getChildren(instance: Cell):
+def getOutPlugs(net):
+    for plug in net.getPlugs():
+        master_net = plug.getMasterNet()
+        if master_net.getDirection() != Net.Direction.OUT:
+            continue
+        yield plug
+
+
+def getChildren(instance: Instance):
     for net in getOutNets(instance):
+        found_plug = False
         for plug in getInPlugs(net):
+            found_plug = True
             yield (plug.getInstance(), net)
+        if not found_plug:
+            yield (None, net)
+
+
+def getParents(instance: Instance):
+    for net in getInNets(instance):
+        found_plug = False
+        for plug in getOutPlugs(net):
+            found_plug = True
+            yield (plug.getInstance(), net)
+        if not found_plug:
+            yield (None, net)
 
 
 class HurricaneHashasble:

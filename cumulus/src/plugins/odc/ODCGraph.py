@@ -19,7 +19,7 @@ class ODCGraph:
     def __init__(self, ff, info_cache):
         self.node_db = {}
         self.info_cache = info_cache
-        self.top = ODCNode(self, ff)
+        self.top = ODCNode(self, ff, is_top=True)
         self.cell_info = info_cache[ff]
         if not self.cell_info.isFlipflop:
             print("[ERROR] Can not build graph from non-flipflop cell.")
@@ -39,18 +39,21 @@ class ODCGraph:
 
     def computeCuts(self):
         self.getCuts(self.top)
+        # OPTI:
+        # self.cut_db.clear_except(self.top)
+        return self.getCutSet()
 
     def getCuts(self, node, level=0):
         if level > self.d_max or len(node.children) == 0:
-            self.cut_db[node] = Cut(node)
+            self.cut_db[node] = Cut(node)  # cut is added in a cut set automatically
             return
         for child in node.children:
             self.getCuts(child, level + 1)
         combined = self.cut_db[node.children[0]]
         for child in node.children[1:]:
-            new_cuts = combined * self.cut_db[child]
+            new_cuts = combined * self.cut_db[child]  # produit cartesien
             if new_cuts.maxSize() > self.m or len(new_cuts) > self.n_cap:
-                self.cut_db[node] = Cut(node)
+                self.cut_db[node] = Cut(node)  # added in cut set automatically
                 return
             combined = new_cuts
         combined.add(Cut(node))
@@ -58,3 +61,13 @@ class ODCGraph:
 
     def getCutSet(self):
         return self.cut_db[self.top]
+
+    def computeFunctions(self):
+        cuts = self.getCutSet()
+        discarded = 0
+        for cut in cuts:
+            cut.computeCutGraph(self.top)
+            cut.top.computeInputs()  # normalement il faudrait reculer sur le graphe mais je ne vois pas l'intérêt...
+            if len(self.top.inputs) > self.max_inputs:
+                discarded += 1
+                continue

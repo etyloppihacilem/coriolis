@@ -11,6 +11,7 @@
 # |  Python      :   "./plugins/odc/odc.py"                         |
 # +-----------------------------------------------------------------+
 
+from .CutNode import CutNode
 from .ODCNode import ODCNode
 
 
@@ -24,6 +25,8 @@ class Cut:
             self.border.add(construct)
         else:
             self.border = set(construct)
+        self.top = None
+        self.max_inputs = 6
 
     def add(self, node: ODCNode):
         self.border.add(node)
@@ -42,6 +45,12 @@ class Cut:
 
     def __repr__(self):
         return ", ".join([e.getName() for e in self])
+
+    def __contains__(self, value):
+        return value in self.border
+
+    def computeCutGraph(self, top):
+        self.top = CutNode(self, top)
 
 
 class CutSet:
@@ -97,3 +106,8 @@ class CutSetDB:
 
     def items(self):
         return self.cut_sets.items()
+
+    def clear_except(self, top):
+        tmp = self.cut_sets[top]
+        self.cut_sets.clear()
+        self.cut_sets[top] = tmp
