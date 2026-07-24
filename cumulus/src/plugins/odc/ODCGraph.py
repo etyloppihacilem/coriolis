@@ -13,7 +13,7 @@
 
 from coriolis.Hurricane import Instance, Net
 
-from .Cuts import Cut, CutSetDB
+from .Cuts import Cut, CutSetDB, CutView
 from .InputsGrapher import InputsGrapher
 from .ODCNode import ODCNode
 
@@ -40,6 +40,15 @@ class InputDict:
         keys_to_remove = [key for value, key in self.data.items() if len(value) == 0]
         for key in keys_to_remove:
             del self.data[key]
+
+    def values(self):
+        return self.data.values()
+
+    def items(self):
+        return self.data.items()
+
+    def keys(self):
+        return self.data.keys()
 
 
 class ODCGraph:
@@ -123,34 +132,47 @@ class ODCGraph:
         cuts = self.getCutSet()
         discarded = 0
         for cut in cuts:
-            cut.computeCutGraph(self.top)
-            cut.top.computeInputs()
-            grapher = InputsGrapher(self.info_cache)
-            for cnode in cut.top.input_nodes:
-                grapher.graph(cnode.node.instance, cnode.inputs)
-            print(len(grapher.input_nets))
-            if len(grapher.input_nets) > self.max_inputs:
+            view = CutView(self, cut)
+            inputs = view.getInputs()
+            if len(inputs) > self.max_inputs:
                 discarded += 1
                 continue
+            # keeping this cut
+            view.getFunctions()
 
 
 """
 Donc il faut une manière unifiée d'exprimer les graphes (parce que pendant la construction, on peut se retrouver à
 parcourir à des étapes différentes la même node pour la parcourir pas du même sens et pas pour les mêmes raisons)
 Donc dans l'ordre :
-    - on fais le graphe depuis les cut et on enregistre toutes les inputs vides, puis on les strikes au fur et à mesure
-    - on parcours ces inputs et on construit le graph dans l'autre sens en back track en enregistrant et strikant aussi
-      les inputs que l'on crée sur le chemin
-    --- là on vérifie si on a bien 6 entrées ou moins
-    - on enregistre aussi les sorties primaires de tout le graphe normalement ce sont les cellules de cut...
-    - Il y a aussi un problème dans la façon dont est construit le graph de cut: si on coupe une porte et qu'un de ses enfants est aussi dans la cut, le lien entre les deux est supprimé.
-    - Donc il faut un graph global et rajouter dessus des vues qui sont des sortes de sous graphes qui se basent sur le graph de hurricane et l'agrandissent au besoin.
-    CHANGEMENT D'APPROCHE
+  - on fais le graphe depuis les cut et on enregistre toutes les inputs vides, puis on les strikes au fur et à mesure
+  - on parcours ces inputs et on construit le graph dans l'autre sens en back track en enregistrant et strikant aussi
+    les inputs que l'on crée sur le chemin
+  --- là on vérifie si on a bien 6 entrées ou moins
+  - on enregistre aussi les sorties primaires de tout le graphe normalement ce sont les cellules de cut...
+  - Il y a aussi un problème dans la façon dont est construit le graph de cut: si on coupe une porte et qu'un de ses
+  enfants est aussi dans la cut, le lien entre les deux est supprimé.
+  - Donc il faut un graph global et rajouter dessus des vues qui sont des sortes de sous graphes qui se basent sur le
+  graph de hurricane et l'agrandissent au besoin.
 
-    On fait un seul graph qui représente tout hurricane et contient toutes les infos, notamment les fonctions exprimées par rapport aux nets, les enfants, les parents... Il faut un moyen de savoir si les parents et enfants ont étés explorés (certainement le tableau à none). On arrête d'utiliser une liste pour les parents et les enfants, maintenant c'est un dict qui fait [node, net], toutes les nodes sont du même type. on utilise que le nom des nets, tous les noms de pin devront être convertis. On affiche jamais la clock ni les alims. Le reset il faut vraiment y reflechir parce qu'on va pas clock gater le reset...
-    Par défaut, l'exploration des nodes s'arrête à une bascule ou au bout du circuit. Elle peut être vers les enfants ou les parents. Elle se propage. Le graphe à un dict [nom_d'instance, node] (pour que ce soit hashable). On peut dire que si une node est déjà explorée dans un sens, on a pas besoin de le refaire. Mais attentions aux infos qui pourraient manquer si l'exploration n'est pas complète. Chaque node est du même objet. On fait des objets qui contiennent des données sur les nodes à la limite, on essaye de ne pas stocker de données dans les nodes parce que c'est super chiant a extraire après. par exemple pour la récursion dans le parcours du graphe...
+CHANGEMENT D'APPROCHE
 
-    Pour les vues, c'est des surcharges des fonctions de parcours du graphe mais avec un paramètre de set qui contient des nodes. Pour tout parcours, on ajoute le set et si une node n'est pas dans le set, on considère qu'elle n'existe pas.
+On fait un seul graph qui représente tout hurricane et contient toutes les infos, notamment les fonctions exprimées
+par rapport aux nets, les enfants, les parents... Il faut un moyen de savoir si les parents et enfants ont étés
+explorés (certainement le tableau à none). On arrête d'utiliser une liste pour les parents et les enfants,
+maintenant c'est un dict qui fait [node, net], toutes les nodes sont du même type. on utilise que le nom des nets,
+tous les noms de pin devront être convertis. On affiche jamais la clock ni les alims. Le reset il faut vraiment y
+reflechir parce qu'on va pas clock gater le reset...
+Par défaut, l'exploration des nodes s'arrête à une bascule ou au bout du circuit. Elle peut être vers les enfants
+ou les parents. Elle se propage. Le graphe à un dict [nom_d'instance, node] (pour que ce soit hashable). On peut
+dire que si une node est déjà explorée dans un sens, on a pas besoin de le refaire. Mais attentions aux infos qui
+pourraient manquer si l'exploration n'est pas complète. Chaque node est du même objet. On fait des objets qui
+contiennent des données sur les nodes à la limite, on essaye de ne pas stocker de données dans les nodes parce que
+c'est super chiant a extraire après. par exemple pour la récursion dans le parcours du graphe...
 
-    Peut être arrêter de faire de la récursion et mettre en place des piles, ce sera plus propre.
+Pour les vues, c'est des surcharges des fonctions de parcours du graphe mais avec un paramètre de set qui contient
+des nodes. Pour tout parcours, on ajoute le set et si une node n'est pas dans le set, on considère qu'elle n'existe
+pas.
+
+Peut être arrêter de faire de la récursion et mettre en place des piles, ce sera plus propre.
 """

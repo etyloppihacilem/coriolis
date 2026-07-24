@@ -66,7 +66,7 @@ class CellInfo:
         for pin in pins:
             pin_name = CellInfo.grp_extract.search(pin.getGroupName()).group(1)
             pin_direction = self._pins_direction[pin_name]
-            if pin_direction == "out":
+            if pin_direction == "output":
                 function = pin.getAttribute("function")
                 if function is None:
                     print(f"[WARNING] No function for output pin {pin_name}")
@@ -104,6 +104,12 @@ class CellInfo:
     def print(self):
         print(f"# {self._master_cell}")
         print("# pins")
-        for pin, direction in self._pins_direction.items():
-            print(f"#   {pin}:{direction}")
+        try:
+            for pin, direction in self._pins_direction.items():
+                if direction == "output":
+                    print(f"#   {pin}:{direction} ({self.pin_function[pin]})")
+                else:
+                    print(f"#   {pin}:{direction}")
+        except KeyError:
+            print(f"#   {self.pin_function}")
         print(f"# is FF        : {self._is_ff}")

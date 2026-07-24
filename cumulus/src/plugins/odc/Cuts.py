@@ -113,6 +113,7 @@ class CutView:
         self.front = set()
         self.back = set()
         self.cut = cut
+        self.graph = graph
         self.travelDown(graph.top)
         for node in self.cut:
             self.travelUp(node)
@@ -124,21 +125,22 @@ class CutView:
         """
         From parent to children
         """
+        if node in self.front:
+            return
+        self.front.add(node)
+        if node in self.cut:
+            return
         for child in node.children.keys():
-            if child in self.frond:
-                continue
-            self.front.add(child)
-            if child not in self.cut:
-                self.travelDown(child)
+            self.travelDown(child)
 
     def travelUp(self, node):
         """
         From children to parent
         """
-        for parent in node.parent.keys():
-            if parent in self.back:
-                continue
-            self.back.add(parent)
+        if node in self.back:
+            return
+        self.back.add(node)
+        for parent in node.parents.keys():
             self.travelDown(parent)
 
     def __contains__(self, value):
@@ -146,3 +148,26 @@ class CutView:
 
     def __iter__(self):
         return self.nodes.__iter__()
+
+    def getInputs(self):
+        """
+        Will break early when max input is reached...
+        """
+        inputs = []
+        for node, nets in self.graph.global_inputs.items():
+            if len(nets) == 0 or node not in self:
+                continue
+            for net in nets.values():
+                inputs.append(net)
+            if len(inputs) > self.graph.max_inputs:
+                break
+        return inputs
+
+    def getFunctions(self):
+        functions = []
+        for node in self.cut:
+            func = node.computeFunction()
+            functions.append(func)
+            print(func)
+            print(func.atoms())
+            print(len(func.atoms()))

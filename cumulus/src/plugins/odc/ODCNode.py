@@ -43,20 +43,21 @@ class ODCNode:
         self.is_top = is_top
         if not is_top:
             self.graph.register_inputs(self)
-            self.function = self.computeFunction()
+            self.own_function = self.getOwnFunction()
+            self.function = None
         else:
             self.function = S.true
 
-    def computeFunction(self, pin_name: str = None):
+    def getOwnFunction(self, pin_name: str = None):
         info = self.graph.info_cache[self.instance]
         symbol_map = getSymbolsMap(self.instance)
         function = None
         if pin_name is None:
             if len(info.pin_function) > 1:
                 print(
-                    f"[WARNING] Maybe using wrong function for cell {self.instance.getName()}"
+                    f"[WARNING] More than one out pin. Maybe using wrong function for cell {self.instance.getName()}"
                 )
-            function = list(info.pin_function.value())[0]
+            function = list(info.pin_function.values())[0]
         else:
             if type(pin_name) is Net:
                 for plug in self.instance.getPlugs():
@@ -68,10 +69,17 @@ class ODCNode:
         ext_expr = replaceSymbols(
             function,
             symbol_map,
-        ) # fonction avec le nom des nets en symboles
-        # for parent, net in self.parents_net:
-        #     pfunc = parent.computeFunction()
-        #     ext_expr = ext_expr.subs(net, pfunc)
+        )  # fonction avec le nom des nets en symboles
+        return ext_expr
+
+    def computeFunction(self):
+        if self.function is not None:
+            return self.function
+        ext_expr = self.own_function
+        for parent, net in self.parents.items():
+            pfunc = parent.computeFunction()
+            ext_expr = ext_expr.subs(net.getName(), pfunc)
+        self.function = ext_expr
         return ext_expr
 
     def makeChildren(self):
