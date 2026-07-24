@@ -25,7 +25,6 @@ class Cut:
         else:
             self.border = set(construct)
         self.top = None
-        self.max_inputs = 6
 
     def add(self, node: ODCNode):
         self.border.add(node)
@@ -47,9 +46,6 @@ class Cut:
 
     def __contains__(self, value):
         return value in self.border
-
-    def computeCutGraph(self, top):
-        self.top = CutNode(self, top)
 
 
 class CutSet:
@@ -112,29 +108,41 @@ class CutSetDB:
         self.cut_sets[top] = tmp
 
 
-class CutNode:
-    def __init__(self, cut: Cut, node: ODCNode, input_nodes=None):
-        self.node = node
+class CutView:
+    def __init__(self, graph, cut):
+        self.front = set()
+        self.back = set()
         self.cut = cut
-        self.end = self.node in self.cut
-        self.inputs = self.node.inputs
-        self.getName = self.node.getName
-        self.inputs = {}
-        if input_nodes is None:
-            self.input_nodes = set()
-        else:
-            self.input_nodes = input_nodes
-        self.children = (
-            [CutNode(self.cut, child, self.input_nodes) for child in self.node.children]
-            if not self.end
-            else []
-        )
+        self.travelDown(graph.top)
+        for node in self.cut:
+            self.travelUp(node)
+        self.nodes = self.front | self.back
+        del self.front
+        del self.back
 
-    def computeInputs(self):
-        for child in self.children:
-            child.computeInputs()
-            self.inputs |= child.inputs
-        if not self.node.is_top:
-            self.inputs |= self.node.inputs
-            if len(self.node.inputs) > 0:
-                self.input_nodes.add(self)
+    def travelDown(self, node):
+        """
+        From parent to children
+        """
+        for child in node.children.keys():
+            if child in self.frond:
+                continue
+            self.front.add(child)
+            if child not in self.cut:
+                self.travelDown(child)
+
+    def travelUp(self, node):
+        """
+        From children to parent
+        """
+        for parent in node.parent.keys():
+            if parent in self.back:
+                continue
+            self.back.add(parent)
+            self.travelDown(parent)
+
+    def __contains__(self, value):
+        return value in self.nodes
+
+    def __iter__(self):
+        return self.nodes.__iter__()

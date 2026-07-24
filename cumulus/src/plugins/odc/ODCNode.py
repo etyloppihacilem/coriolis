@@ -13,6 +13,24 @@
 
 from coriolis.Hurricane import Instance, Net
 from .HurricaneAsGraph import getChildren, getParents, HurricaneHashasble
+from sympy import And, S, Symbol, simplify_logic
+
+
+def getSymbolsMap(instance):
+    ret = {}
+    for plug in instance.getPlugs():
+        net = plug.getNet()
+        master_net = plug.getMasterNet()
+        if net is None:
+            continue
+        ret[master_net.getName()] = Symbol(net.getName(), boolean=True)
+    return ret
+
+
+def replaceSymbols(expr, correspondance):
+    ret = expr
+    ret = ret.subs(correspondance)
+    return ret
 
 
 class ODCNode:
@@ -25,6 +43,36 @@ class ODCNode:
         self.is_top = is_top
         if not is_top:
             self.graph.register_inputs(self)
+            self.function = self.computeFunction()
+        else:
+            self.function = S.true
+
+    def computeFunction(self, pin_name: str = None):
+        info = self.graph.info_cache[self.instance]
+        symbol_map = getSymbolsMap(self.instance)
+        function = None
+        if pin_name is None:
+            if len(info.pin_function) > 1:
+                print(
+                    f"[WARNING] Maybe using wrong function for cell {self.instance.getName()}"
+                )
+            function = list(info.pin_function.value())[0]
+        else:
+            if type(pin_name) is Net:
+                for plug in self.instance.getPlugs():
+                    if plug.getNet() == pin_name:
+                        function = info.pin_function[pin_name.getName()]
+                        break
+            else:
+                function = info.pin_function[pin_name]
+        ext_expr = replaceSymbols(
+            function,
+            symbol_map,
+        ) # fonction avec le nom des nets en symboles
+        # for parent, net in self.parents_net:
+        #     pfunc = parent.computeFunction()
+        #     ext_expr = ext_expr.subs(net, pfunc)
+        return ext_expr
 
     def makeChildren(self):
         for child, net in getChildren(self.instance):

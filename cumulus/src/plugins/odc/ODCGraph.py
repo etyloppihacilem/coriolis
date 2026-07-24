@@ -50,13 +50,15 @@ class ODCGraph:
     def __init__(self, ff: Instance, info_cache):
         self.node_db = {}
         self.info_cache = info_cache
-        self.top = ODCNode(self, ff, is_top=True) # this is the flip flop.
+        self.top = ODCNode(self, ff, is_top=True)  # this is the flip flop.
         self.cell_info = info_cache[ff]
         if not self.cell_info.isFlipflop:
             print("[ERROR] Can not build graph from non-flipflop cell.")
             raise ValueError
         self.cut_db = CutSetDB()
-        self.global_inputs: dict[ODCNode, dict[str, Net]] = InputDict() # inputs of the whole graph.
+        self.global_inputs: dict[ODCNode, dict[str, Net]] = (
+            InputDict()
+        )  # inputs of the whole graph.
 
         # Parameters
         self.d_max = 20

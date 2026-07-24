@@ -16,23 +16,6 @@ from .HurricaneAsGraph import getParents, HurricaneHashasble
 from coriolis.Hurricane import Net
 
 
-def getSymbolsMap(instance):
-    ret = {}
-    for plug in instance.getPlugs():
-        net = plug.getNet()
-        master_net = plug.getMasterNet()
-        if net is None:
-            continue
-        ret[master_net.getName()] = Symbol(net.getName(), boolean=True)
-    return ret
-
-
-def replaceSymbols(expr, correspondance):
-    ret = expr
-    ret = ret.subs(correspondance)
-    return ret
-
-
 class InputsNode:
     def __init__(self, graph, instance, is_top=False):
         self.instance = instance
