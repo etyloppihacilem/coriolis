@@ -15,6 +15,22 @@ import re
 
 from coriolis.CRL import getLibertyGroupFromCell
 from coriolis.Hurricane import Cell
+from sympy import S, symbols, simplify_logic
+from sympy.parsing.sympy_parser import (
+    implicit_multiplication_application,
+    parse_expr,
+    standard_transformations,
+)
+
+
+def lib_expr_parsing(expression: str, pins: dict[str, S]):
+    clean_expr = expression.replace("!", "~")
+    clean_expr = clean_expr.replace('"', "")
+    transformations = standard_transformations + (implicit_multiplication_application,)
+    parsed_func = parse_expr(
+        clean_expr, transformations=transformations, local_dict=pins
+    )
+    return simplify_logic(parsed_func)
 
 
 class CellInfo:
@@ -29,6 +45,7 @@ class CellInfo:
         self._pins_direction: dict[str, str] = {}
         self._is_ff: bool = False
         self._is_in_lib = True
+        self.pin_function = {}
 
         grp = getLibertyGroupFromCell(master_cell)
         if grp is None:
@@ -42,6 +59,21 @@ class CellInfo:
             pin_name = CellInfo.grp_extract.search(pin.getGroupName()).group(1)
             pin_direction = pin.getAttribute("direction").getValue()
             self._pins_direction[pin_name] = pin_direction
+
+        local_dict = {
+            pin_name: symbols(pin_name) for pin_name in self._pins_direction.keys()
+        }
+        for pin in pins:
+            pin_name = CellInfo.grp_extract.search(pin.getGroupName()).group(1)
+            pin_direction = self._pins_direction[pin_name]
+            if pin_direction == "out":
+                function = pin.getAttribute("function")
+                if function is None:
+                    print(f"[WARNING] No function for output pin {pin_name}")
+                else:
+                    function_str = function.getValue()
+                    expr = lib_expr_parsing(function_str, local_dict)
+                    self.pin_function[pin_name] = expr
 
         # checking wether cell is a flip flop
         ff_grp = grp.getGroups("ff\\(.*")

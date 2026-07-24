@@ -70,10 +70,10 @@ class ODCGraph:
         discarded = 0
         for cut in cuts:
             cut.computeCutGraph(self.top)
-            cut.top.computeInputs()  # normalement il faudrait reculer sur le graphe mais je ne vois pas l'intérêt...
+            cut.top.computeInputs()
             grapher = InputsGrapher(self.info_cache)
-            for node in cut.top.input_nodes:
-                grapher.graph(node.instance)
+            for cnode in cut.top.input_nodes:
+                grapher.graph(cnode.node.instance, cnode.inputs)
             print(len(grapher.input_nets))
             if len(grapher.input_nets) > self.max_inputs:
                 discarded += 1

@@ -137,4 +137,4 @@ class CutNode:
         if not self.node.is_top:
             self.inputs |= self.node.inputs
             if len(self.node.inputs) > 0:
-                self.input_nodes.add(self.node)
+                self.input_nodes.add(self)

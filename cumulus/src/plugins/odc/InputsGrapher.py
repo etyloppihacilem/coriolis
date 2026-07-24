@@ -21,6 +21,6 @@ class InputsGrapher:
         self.input_nets = set()
         self.graphs = []
 
-    def graph(self, instance):
-        graph = InputsGraph(instance, self.info_cache, self.input_nets, self.node_db)
+    def graph(self, instance, inputs):
+        graph = InputsGraph(instance, inputs, self.info_cache, self.input_nets, self.node_db)
         self.graphs.append(graph)
