@@ -34,7 +34,6 @@ class odc:
         # with open("odcgate_cut_test.json", "w") as f:
         #     json.dump(result, f, indent=2, default=lambda o: list(o))
         for graph in result:
-            print(f"{graph.top.getName()} :")
-            graph.computeFunctions()
-            for cut in graph.getCutSet():
-                print(f"  {cut}")
+            print(f"{graph.top.getName()} : {graph.top_net.getName()}")
+            function = graph.computeFunctions()
+            print(function)

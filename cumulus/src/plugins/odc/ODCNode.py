@@ -41,12 +41,12 @@ class ODCNode:
         self.parents = {}
         # OPTI: is reset an input ?
         self.is_top = is_top
+        self.graph.register_inputs(self)
         if not is_top:
-            self.graph.register_inputs(self)
             self.own_function = self.getOwnFunction()
             self.function = None
         else:
-            self.function = S.true
+            self.function = Symbol(self.graph.top_net.getName())
 
     def getOwnFunction(self, pin_name: str = None):
         info = self.graph.info_cache[self.instance]

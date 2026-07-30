@@ -168,6 +168,4 @@ class CutView:
         for node in self.cut:
             func = node.computeFunction()
             functions.append(func)
-            print(func)
-            print(func.atoms())
-            print(len(func.atoms()))
+        return functions

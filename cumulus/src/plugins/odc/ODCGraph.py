@@ -11,10 +11,14 @@
 # |  Python      :   "./plugins/odc/ODCGraph.py"                    |
 # +-----------------------------------------------------------------+
 
+import itertools
+
+import numpy as np
+import pandas as pd
 from coriolis.Hurricane import Instance, Net
+from sympy import lambdify, Or, And, simplify_logic, S
 
 from .Cuts import Cut, CutSetDB, CutView
-from .InputsGrapher import InputsGrapher
 from .ODCNode import ODCNode
 
 
@@ -57,17 +61,19 @@ class ODCGraph:
     """
 
     def __init__(self, ff: Instance, info_cache):
+        self.excluded_net = {"rst_n"}  # TODO: should be used as parameter
+
         self.node_db = {}
         self.info_cache = info_cache
+        self.top_net = None
         self.top = ODCNode(self, ff, is_top=True)  # this is the flip flop.
         self.cell_info = info_cache[ff]
         if not self.cell_info.isFlipflop:
             print("[ERROR] Can not build graph from non-flipflop cell.")
             raise ValueError
         self.cut_db = CutSetDB()
-        self.global_inputs: dict[ODCNode, dict[str, Net]] = (
-            InputDict()
-        )  # inputs of the whole graph.
+        # inputs of the whole graph.
+        self.global_inputs: dict[ODCNode, dict[str, Net]] = InputDict()
 
         # Parameters
         self.d_max = 20
@@ -79,13 +85,22 @@ class ODCGraph:
         for plug in node.instance.getPlugs():
             master_net = plug.getMasterNet()
             if (
-                master_net.getDirection() != Net.Direction.IN
-                or master_net.isSupply()
-                or master_net.isClock()
+                # master_net.getDirection() != Net.Direction.IN
+                master_net.isSupply() or master_net.isClock()
             ):
                 continue
             net = plug.getNet()
-            self.global_inputs[node][net.getName()] = net
+            if master_net.getDirection() == Net.Direction.OUT:
+                if node.is_top:
+                    if self.top_net is not None:
+                        print("[ERROR] Two output nets on top level cell.")
+                    self.top_net = net
+            elif master_net.getDirection() != Net.Direction.IN:
+                continue
+            if net.getName() in self.excluded_net:
+                continue
+            if not node.is_top:
+                self.global_inputs[node][net.getName()] = net
 
     def connect(self, node, net):
         """
@@ -128,9 +143,52 @@ class ODCGraph:
     def getCutSet(self):
         return self.cut_db[self.top]
 
+    def getTruthTable(self, expr):
+        all_symbols = sorted(list(expr.atoms()), key=lambda s: s.name)
+        print(all_symbols)
+        excluded_name = self.top_net.getName()
+        target_symbols = [s for s in all_symbols if s.name != excluded_name]
+        excluded_symbol = next(
+            (s for s in all_symbols if s.name == excluded_name), None
+        )
+        if len(target_symbols) < 1:
+            return (None, None)
+        if excluded_symbol is None:
+            print("[ERROR] Cut does not contain top_net.")
+            return (None, None)
+        num_vars = len(target_symbols)
+        if num_vars > self.max_inputs:
+            print(
+                f"[WARNING] Cut does contain more than {self.max_inputs} and this should not be possible."
+            )
+        grid = np.array(list(itertools.product([0, 1], repeat=num_vars)), dtype=int)
+        args = target_symbols + ([excluded_symbol] if excluded_symbol else [])
+        func = lambdify(args, expr, modules="numpy")
+        inputs = [grid[:, i] for i in range(num_vars)]
+        inputs2 = [grid[:, i] for i in range(num_vars)]
+        inputs.append(np.full(grid.shape[0], 0))
+        inputs2.append(np.full(grid.shape[0], 1))
+        raw_output = func(*inputs)
+        raw_output2 = func(*inputs2)
+        output = np.broadcast_to(raw_output, grid.shape[0]).astype(int)
+        output2 = np.broadcast_to(raw_output2, grid.shape[0]).astype(int)
+        # numpy XNOR because of dark int stuff
+        result = (output == output2).astype(int)
+        truth_table = np.column_stack((grid, result))
+        header = [s.name for s in target_symbols] + ["XNOR"]
+        # begin debug
+        df = pd.DataFrame(truth_table, columns=header)
+        pd.set_option("display.max_rows", None)
+        print(df)
+        # end debug
+        mask = truth_table[:, -1] == 1
+        reduced_table = truth_table[mask]
+        return (reduced_table, target_symbols)
+
     def computeFunctions(self):
         cuts = self.getCutSet()
         discarded = 0
+        simulations = []
         for cut in cuts:
             view = CutView(self, cut)
             inputs = view.getInputs()
@@ -138,7 +196,27 @@ class ODCGraph:
                 discarded += 1
                 continue
             # keeping this cut
-            view.getFunctions()
+            functions = view.getFunctions()
+            for func in functions:
+                sim = self.getTruthTable(func)
+                if sim[0] is None:
+                    continue
+                simulations.append(sim)
+        # concatenating functions
+        function = S.false
+        for table, syms in simulations:
+            minterms_expr = []
+            for row in table:
+                term_literal = []
+                for val, sym in zip(row[:-1], syms):
+                    if val == 1:
+                        term_literal.append(sym)
+                    else:
+                        term_literal.append(~sym)
+                minterms_expr.append(And(*term_literal))
+            function = Or(Or(*minterms_expr), function)
+        print(function)
+        return simplify_logic(function)
 
 
 """
