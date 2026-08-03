@@ -14,12 +14,17 @@
 import itertools
 
 import numpy as np
-import pandas as pd
 from coriolis.Hurricane import Instance, Net
 from sympy import lambdify, Or, And, simplify_logic, S
 
 from .Cuts import Cut, CutSetDB, CutView
 from .ODCNode import ODCNode
+
+
+# The following is an implementation of the ODCGate algorithm presented in
+# F. Liu, S. Yin, B. Jiang, Y. Ye, F. Farnia, and B. Yu,
+# “ODCGate: Leveraging Observability Don’t Care Conditions for Enhanced Power Efficiency in Clock Gating,”
+# ACM Trans. Des. Autom. Electron. Syst., p. 3812543, Apr. 2026, doi: 10.1145/3812543.
 
 
 class InputDict:
@@ -80,6 +85,7 @@ class ODCGraph:
         self.m = 11
         self.n_cap = 35
         self.max_inputs = 6
+        self.function = None
 
     def register_inputs(self, node):
         for plug in node.instance.getPlugs():
@@ -120,7 +126,7 @@ class ODCGraph:
         self.top.makeChildren()
         self.getCuts(self.top)
         # OPTI:
-        # self.cut_db.clear_except(self.top)
+        self.cut_db.clear_except(self.top)
         return self.getCutSet()
 
     def getCuts(self, node, level=0):
@@ -145,7 +151,6 @@ class ODCGraph:
 
     def getTruthTable(self, expr):
         all_symbols = sorted(list(expr.atoms()), key=lambda s: s.name)
-        print(all_symbols)
         excluded_name = self.top_net.getName()
         target_symbols = [s for s in all_symbols if s.name != excluded_name]
         excluded_symbol = next(
@@ -172,20 +177,23 @@ class ODCGraph:
         raw_output2 = func(*inputs2)
         output = np.broadcast_to(raw_output, grid.shape[0]).astype(int)
         output2 = np.broadcast_to(raw_output2, grid.shape[0]).astype(int)
-        # numpy XNOR because of dark int stuff
-        result = (output == output2).astype(int)
+        result = (output == output2).astype(int)  # numpy XNOR because of dark int stuff
         truth_table = np.column_stack((grid, result))
-        header = [s.name for s in target_symbols] + ["XNOR"]
-        # begin debug
-        df = pd.DataFrame(truth_table, columns=header)
-        pd.set_option("display.max_rows", None)
-        print(df)
-        # end debug
+        # # begin debug
+        # import pandas as pd
+        # header = [s.name for s in target_symbols] + ["XNOR"]
+        # df = pd.DataFrame(truth_table, columns=header)
+        # pd.set_option("display.max_rows", None)
+        # print(df)
+        # # end debug
         mask = truth_table[:, -1] == 1
         reduced_table = truth_table[mask]
         return (reduced_table, target_symbols)
 
     def computeFunctions(self):
+        to_expand = [node for node in self.global_inputs.keys()]
+        for node in to_expand:
+            node.makeParents()
         cuts = self.getCutSet()
         discarded = 0
         simulations = []
@@ -203,7 +211,7 @@ class ODCGraph:
                     continue
                 simulations.append(sim)
         # concatenating functions
-        function = S.false
+        function = None
         for table, syms in simulations:
             minterms_expr = []
             for row in table:
@@ -214,9 +222,14 @@ class ODCGraph:
                     else:
                         term_literal.append(~sym)
                 minterms_expr.append(And(*term_literal))
-            function = Or(Or(*minterms_expr), function)
-        print(function)
-        return simplify_logic(function)
+            function = And(Or(*minterms_expr), function if function is not None else S.true)
+        if function is None:
+            return None
+        self.function = simplify_logic(function)
+        return self.function
+
+    def printStats(self):
+        pass
 
 
 """

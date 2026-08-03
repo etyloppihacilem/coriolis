@@ -93,6 +93,7 @@ class ODCNode:
             new_node.addParent(self, net)
             self.graph.connect(new_node, net)
             self.children[new_node] = net
+            new_node.makeChildren()
 
     def makeParents(self):
         for parent, net in getParents(self.instance):
@@ -105,6 +106,7 @@ class ODCNode:
             new_node.addChild(self, net)
             self.graph.connect(self, net)
             self.parents[new_node] = net
+            new_node.makeParents()
 
     def addParent(self, parent, net):
         self.parents[parent] = net
@@ -125,3 +127,6 @@ class ODCNode:
     @property
     def parent_list(self):
         return list(self.children.keys())
+
+    def __repr__(self):
+        return f"ODCNode({self.getName()}) {len(self.children)} children"

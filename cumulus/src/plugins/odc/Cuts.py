@@ -81,6 +81,9 @@ class CutSet:
     def __iter__(self):
         return self.cuts.__iter__()
 
+    def __repr__(self):
+        return f"CutSet({len(self)} cuts) : [{','.join([str(type(i)) for i in self])}]"
+
 
 class CutSetDB:
     def __init__(self):

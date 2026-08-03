@@ -66,14 +66,31 @@ def getChildren(instance: Instance):
             yield (None, net)
 
 
+cache = {}
+
+
 def getParents(instance: Instance):
+    global cache
+    # amélioration : temps d'exécution /2
+    try:
+        return cache[instance.getName()]
+    except KeyError:
+        pass
+    parents = []
     for net in getInNets(instance):
         found_plug = False
         for plug in getOutPlugs(net):
             found_plug = True
-            yield (plug.getInstance(), net)
+            parents.append((plug.getInstance(), net))
         if not found_plug:
-            yield (None, net)
+            parents.append((None, net))
+    cache[instance.getName()] = parents
+    return parents
+
+
+def printCache():
+    global cache
+    pass
 
 
 class HurricaneHashasble:
