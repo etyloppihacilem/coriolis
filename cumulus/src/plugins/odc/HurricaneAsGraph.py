@@ -83,7 +83,7 @@ def getParents(instance: Instance):
             found_plug = True
             parents.append((plug.getInstance(), net))
         if not found_plug:
-            parents.append((None, net))
+            parents.append((None, net)) # this is connected to external output.
     cache[instance.getName()] = parents
     return parents
 

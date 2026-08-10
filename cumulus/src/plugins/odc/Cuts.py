@@ -157,11 +157,10 @@ class CutView:
         Will break early when max input is reached...
         """
         inputs = []
-        for node, nets in self.graph.global_inputs.items():
-            if len(nets) == 0 or node not in self:
+        for node, net in self.graph.top.getGraphInputs():
+            if node not in self:
                 continue
-            for net in nets.values():
-                inputs.append(net)
+            inputs.append(net)
             if len(inputs) > self.graph.max_inputs:
                 break
         return inputs

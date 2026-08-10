@@ -20,7 +20,7 @@ class CellInfoCache:
     def __init__(self):
         self._cell_cache: dict[str, CellInfo] = {}
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> CellInfo:
         if type(key) is str:
             return self._cell_cache[key]
         elif type(key) is not Cell and type(key) is not Instance:

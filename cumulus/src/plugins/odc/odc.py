@@ -17,6 +17,7 @@ from datetime import datetime
 
 from .CellInfoCache import CellInfoCache
 from .ODCGraph import ODCGraph
+from .ODCGrapher import ODCGrapher
 
 
 class ODCStats:
@@ -116,12 +117,15 @@ class ODCStats:
             )
         print(f"Cut time: {str(self.cut_end - self.cut_begin).split('.')[0]}")
         print(f"Function time: {str(self.func_end - self.func_begin).split('.')[0]}")
+        print(f"Graph creation time: {str(ODCGraph.creation_time).split('.')[0]}")
+        print(f"Graph extension time: {str(ODCGraph.total_time).split('.')[0]}")
 
 
 class odc:
     def __init__(self, cell: Cell):
         self.cell = cell
         self.info_cache = CellInfoCache()
+        self.grapher = ODCGrapher(self.info_cache)
 
     def computeODC(self):
         stats = ODCStats()
@@ -136,7 +140,7 @@ class odc:
         stats.cut_begin = datetime.now()
         for index, instance in enumerate(bascules):
             print(f"Calculating cut {index} / {len(bascules)}")
-            graph = ODCGraph(instance, self.info_cache)
+            graph = ODCGraph(instance, self.info_cache, self.grapher)
             graph.computeCuts()
             result.append(graph)
         stats.cut_end = datetime.now()
