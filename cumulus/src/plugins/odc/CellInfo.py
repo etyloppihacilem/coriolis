@@ -63,10 +63,6 @@ class CellInfo:
         local_dict = {
             pin_name: symbols(pin_name) for pin_name in self._pins_direction.keys()
         }
-        cg_integrated_cell = grp.getAttribute("clock_gating_integrated_cell")
-        if cg_integrated_cell is not None:
-            self._is_ff = True
-            return
         for pin in pins:
             pin_name = CellInfo.grp_extract.search(pin.getGroupName()).group(1)
             pin_direction = self._pins_direction[pin_name]
@@ -78,6 +74,10 @@ class CellInfo:
                     function_str = function.getValue()
                     expr = lib_expr_parsing(function_str, local_dict)
                     self.pin_function[pin_name] = expr
+        cg_integrated_cell = grp.getAttribute("clock_gating_integrated_cell")
+        if cg_integrated_cell is not None:
+            self._is_ff = True
+            return
 
         # checking wether cell is a flip flop
         ff_grp = grp.getGroups("ff\\(.*")

@@ -58,7 +58,7 @@ class NodeLink:
         self._children_done = False
         self._parents = {}
         self._parents_done = False
-        self.own_function = self._getOwnFunction()
+        self.own_function = self._getOwnFunction() if not self.isFF() else None
         # only contains unconnected inputs
         self.inputs: dict[str, Net] = {}
         self.primary_inputs = set()
