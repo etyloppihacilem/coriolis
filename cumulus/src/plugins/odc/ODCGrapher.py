@@ -244,7 +244,7 @@ class ODCGrapher:
         for graph in self.graphs:
             graph.computeFunctions()
         func_end = datetime.now()
-        # print("Fusion des fonctions")
+        print("Fusion des fonctions")
         # Affichage des temps
         print(f"Cuts done in {str(cuts_end - cuts_begin).split('.')[0]}")
         print(f"Func done in {str(func_end - func_begin).split('.')[0]}")

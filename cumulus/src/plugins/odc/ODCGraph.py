@@ -16,7 +16,6 @@ import itertools
 import numpy as np
 from coriolis.Hurricane import Instance, Net
 from sympy import lambdify, Or, And, simplify_logic, S
-from datetime import datetime, timedelta
 
 from .Cuts import Cut, CutSetDB, CutView
 from .ODCNode import ODCNode
@@ -36,12 +35,11 @@ class ODCGraph:
 
     def __init__(self, ff: Instance, info_cache, grapher: ODCGrapher):
         self.excluded_net = {"rst_n"}  # TODO: should be used as parameter
+        self.info_cache = info_cache
 
-        self.cell_info = info_cache[ff]
-        if not self.cell_info.isFlipflop:
+        if not self.info_cache[ff].isFlipflop:
             print("[ERROR] Can not build graph from non-flipflop cell.")
             raise ValueError
-        self.info_cache = info_cache
         self.grapher = grapher
         self.node_db = {}
         self.link_to_node = {}
@@ -50,13 +48,15 @@ class ODCGraph:
         self.cut_db = CutSetDB()
         # inputs of the whole graph.
         self.graph_inputs: dict[ODCNode, Net] = {}
+        self.function = None
+        self.truth_table = None
 
         # Parameters
+        # TODO: Should be set externally
         self.d_max = 20
         self.m = 11
         self.n_cap = 35
         self.max_inputs = 6
-        self.function = None
 
     def addNode(self, instance):
         try:
@@ -73,8 +73,6 @@ class ODCGraph:
         except KeyError:
             pass
         return self.addNode(link.instance)
-
-    creation_time = timedelta(0)
 
     def computeCuts(self):
         self.getCuts(self.top)
@@ -143,8 +141,6 @@ class ODCGraph:
         reduced_table = truth_table[mask]
         return (reduced_table, target_symbols)
 
-    total_time = timedelta(0)
-
     def computeFunctions(self):
         cuts = self.getCutSet()
         discarded = 0
@@ -181,6 +177,3 @@ class ODCGraph:
             return None
         self.function = simplify_logic(function)
         return self.function
-
-    def printStats(self):
-        pass
