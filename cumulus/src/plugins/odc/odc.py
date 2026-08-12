@@ -127,7 +127,7 @@ class odc:
             if cell_info.isFlipflop:
                 bascules.append(instance)
         self.grapher.createGraphs(bascules)
-        self.grapher.runAll()
+        self.grapher.runAll(stats)
+        print(self.grapher.spectralClustering())
         print("Fin, affichage des statistiques")
-        stats.computeStats(self.grapher)
         stats.print()

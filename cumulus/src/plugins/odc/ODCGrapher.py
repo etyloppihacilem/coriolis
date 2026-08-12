@@ -11,12 +11,16 @@
 # |  Python      :   "./plugins/odc/ODCGrapher.py"                  |
 # +-----------------------------------------------------------------+
 
-from coriolis.Hurricane import Instance, Net
 from datetime import datetime
 
+import numpy as np
+from coriolis.Hurricane import Instance, Net
+from sklearn.cluster import SpectralClustering
+from sympy import Symbol, S
+
 from .CellInfoCache import CellInfoCache
-from .HurricaneAsGraph import HurricaneHashasble, getChildren, getParents
-from sympy import And, S, Symbol, simplify_logic, Function
+from .HurricaneAsGraph import getChildren, getParents
+from .ODCFunction import ODCFunction, similarity
 
 
 def getSymbolsMap(instance):
@@ -209,6 +213,16 @@ class ODCGrapher:
         self.info_cache = info_cache
         self.primary_outputs: dict[str, Net] = {}
         self.graphs = []
+        self.results = []
+
+    def clean(self):
+        self.database.clear()
+        self.primary_outputs.clear()
+        self.graphs.clear()
+
+    def clear(self):
+        self.clean()
+        self.results.clear()
 
     def __getitem__(self, key) -> NodeLink:
         try:
@@ -224,6 +238,7 @@ class ODCGrapher:
 
     def newGraph(self, instance):
         from .ODCGraph import ODCGraph
+
         graph = ODCGraph(instance, self.info_cache, self)
         self.graphs.append(graph)
         return graph
@@ -231,9 +246,10 @@ class ODCGrapher:
     def createGraphs(self, instances):
         print("Creation des graphes")
         from .ODCGraph import ODCGraph
+
         self.graphs = list([ODCGraph(i, self.info_cache, self) for i in instances])
 
-    def runAll(self):
+    def runAll(self, stats=None):
         print("Calcul des coupes (prend un peu de temps)")
         cuts_begin = datetime.now()
         for graph in self.graphs:
@@ -244,9 +260,35 @@ class ODCGrapher:
         for graph in self.graphs:
             graph.computeFunctions()
         func_end = datetime.now()
+        stats.computeStats(self)
+        for graph in self.graphs:
+            if graph.function is None or graph.function == S.false:
+                continue
+            self.results.append(ODCFunction(graph))
+        self.clean()  # on supprime tout sauf les résultats
         print("Fusion des fonctions")
         # Affichage des temps
         print(f"Cuts done in {str(cuts_end - cuts_begin).split('.')[0]}")
         print(f"Func done in {str(func_end - func_begin).split('.')[0]}")
         total = (cuts_end - cuts_begin) + (func_end - func_begin)
         print(f"All done in {str(total).split('.')[0]}")
+
+    def spectralClustering(self):
+        N = len(self.results)
+        affinity_matrix = np.zeros((N, N))
+
+        for i in range(N):
+            for j in range(N):
+                if i == j:
+                    affinity_matrix[i, j] = 1.0
+                else:
+                    affinity_matrix[i, j] = similarity(self.results[i], self.results[j])
+        k = 8  # TODO: déterminer la valeur qui va bien...
+        clustering = SpectralClustering(
+            n_clusters=k,
+            affinity="precomputed",
+            assign_labels="kmeans",
+            random_state=42,
+        )
+        labels = clustering.fit_predict(affinity_matrix)
+        return labels

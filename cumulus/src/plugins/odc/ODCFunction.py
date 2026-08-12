@@ -11,13 +11,12 @@
 # |  Python      :   "./plugins/odc/ODCFunction.py"                 |
 # +-----------------------------------------------------------------+
 
-from .ODCGraph import ODCGraph
 from .TruthTableUtil import BDDSymPyUtil
 
 
 def similarity(r1, r2):
-    f1 = r1.function
-    f2 = r2.function
+    f1 = r1.bdd
+    f2 = r2.bdd
 
     vars1 = set(f1.var_names)
     vars2 = set(f2.var_names)
@@ -44,8 +43,9 @@ def similarity(r1, r2):
 
 
 class ODCFunction:
-    def __init__(self, graph: ODCGraph):
+    def __init__(self, graph):
         self.info_cache = graph.info_cache
         self.top_net = graph.top_net
         self.instance = graph.top.link.instance  # because we don't use graph anymore
-        self.function = BDDSymPyUtil(graph.function)
+        self.function = graph.function
+        self.bdd = BDDSymPyUtil(self.function)
