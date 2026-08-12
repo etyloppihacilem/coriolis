@@ -12,6 +12,7 @@
 # +-----------------------------------------------------------------+
 
 from coriolis.Hurricane import Instance, Net
+from datetime import datetime
 
 from .CellInfoCache import CellInfoCache
 from .HurricaneAsGraph import HurricaneHashasble, getChildren, getParents
@@ -207,6 +208,7 @@ class ODCGrapher:
         self.database = {}
         self.info_cache = info_cache
         self.primary_outputs: dict[str, Net] = {}
+        self.graphs = []
 
     def __getitem__(self, key) -> NodeLink:
         try:
@@ -216,3 +218,35 @@ class ODCGrapher:
         ret = NodeLink(self, key)
         self.database[key.getName()] = ret
         return ret
+
+    def __iter__(self):
+        return self.graphs.__iter__()
+
+    def newGraph(self, instance):
+        from .ODCGraph import ODCGraph
+        graph = ODCGraph(instance, self.info_cache, self)
+        self.graphs.append(graph)
+        return graph
+
+    def createGraphs(self, instances):
+        print("Creation des graphes")
+        from .ODCGraph import ODCGraph
+        self.graphs = list([ODCGraph(i, self.info_cache, self) for i in instances])
+
+    def runAll(self):
+        print("Calcul des coupes (prend un peu de temps)")
+        cuts_begin = datetime.now()
+        for graph in self.graphs:
+            graph.computeCuts()
+        cuts_end = datetime.now()
+        print("Calcul des fonctions (peut prendre beaucoup de temps)")
+        func_begin = datetime.now()
+        for graph in self.graphs:
+            graph.computeFunctions()
+        func_end = datetime.now()
+        # print("Fusion des fonctions")
+        # Affichage des temps
+        print(f"Cuts done in {str(cuts_end - cuts_begin).split('.')[0]}")
+        print(f"Func done in {str(func_end - func_begin).split('.')[0]}")
+        total = (cuts_end - cuts_begin) + (func_end - func_begin)
+        print(f"All done in {str(total).split('.')[0]}")

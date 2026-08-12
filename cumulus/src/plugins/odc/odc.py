@@ -36,6 +36,10 @@ class ODCStats:
         self.func_begin = None
         self.func_end = None
 
+    def computeStats(self, grapher):
+        for graph in grapher.graphs:
+            self.add_graph(graph)
+
     def add_graph(self, graph):
         self.ff_count += 1
         if graph.function is None:
@@ -104,8 +108,8 @@ class ODCStats:
             mean_atoms = sum(self.atoms_count) / len(self.atoms_count)
             max_atoms = max(self.atoms_count)
             print(f"Atoms count : {min_atoms} / {mean_atoms:.2f} / {max_atoms}")
-        print(f"Cut time: {str(self.cut_end - self.cut_begin).split('.')[0]}")
-        print(f"Function time: {str(self.func_end - self.func_begin).split('.')[0]}")
+        # print(f"Cut time: {str(self.cut_end - self.cut_begin).split('.')[0]}")
+        # print(f"Function time: {str(self.func_end - self.func_begin).split('.')[0]}")
 
 
 class odc:
@@ -116,33 +120,14 @@ class odc:
 
     def computeODC(self):
         stats = ODCStats()
-        result = []
         print("Recherche des bascules")
         bascules = []
         for instance in self.cell.getInstances():
             cell_info = self.info_cache[instance]
             if cell_info.isFlipflop:
                 bascules.append(instance)
-        print("Début du calcul des cuts")
-        stats.cut_begin = datetime.now()
-        for index, instance in enumerate(bascules):
-            print(f"Calculating cut {index} / {len(bascules)}")
-            graph = ODCGraph(instance, self.info_cache, self.grapher)
-            graph.computeCuts()
-            result.append(graph)
-        stats.cut_end = datetime.now()
-        # import json
-        # with open("odcgate_cut_test.json", "w") as f:
-        #     json.dump(result, f, indent=2, default=lambda o: list(o))
-        print("Calcul des fonctions")
-        stats.func_begin = datetime.now()
-        for index, graph in enumerate(result):
-            # print(f"\n{graph.top.getName()} : {graph.top_net.getName()}")
-            # function = graph.computeFunctions()
-            print(f"Calcul de {index} / {len(result)}")
-            graph.computeFunctions()
-            # print(function)
-            stats.add_graph(graph)
-        stats.func_end = datetime.now()
+        self.grapher.createGraphs(bascules)
+        self.grapher.runAll()
         print("Fin, affichage des statistiques")
+        stats.computeStats(self.grapher)
         stats.print()
