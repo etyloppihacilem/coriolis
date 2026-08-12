@@ -75,50 +75,37 @@ class ODCStats:
             print(
                 f"With functions      : {self.functions:{mwidth}} ffs ({self.functions * 100 / self.ff_count:6.2f}% )"
             )
-            print(
-                f"With no functions   : {self.no_functions:{mwidth}} ffs ({
-                    self.no_functions * 100 / self.ff_count:6.2f}% )"
-            )
-            print(
-                f"With false functions: {self.false_functions:{mwidth}} ffs ({
-                    self.false_functions * 100 / self.ff_count:6.2f}% )"
-            )
-            print(
-                f"With true functions : {self.true_functions:{mwidth}} ffs ({
-                    self.true_functions * 100 / self.ff_count:6.2f}% )"
-            )
+            value = self.no_functions
+            percent = self.no_functions * 100 / self.ff_count
+            print(f"With no functions   : {value:{mwidth}} ffs ({percent:6.2f}% )")
+            value = self.false_functions
+            percent = self.false_functions * 100 / self.ff_count
+            print(f"With false functions: {value:{mwidth}} ffs ({percent:6.2f}% )")
+            value = self.true_functions
+            percent = self.true_functions * 100 / self.ff_count
+            print(f"With true functions : {value:{mwidth}} ffs ({percent:6.2f}% )")
         if len(self.children_count) > 0:
-            print(
-                f"Children count : {min(self.children_count)} / {
-                    sum(self.children_count) / len(self.children_count):.2f} / {
-                    max(self.children_count)
-                }"
-            )
+            min_child = min(self.children_count)
+            mean_child = sum(self.children_count) / len(self.children_count)
+            max_child = max(self.children_count)
+            print(f"Children count : {min_child} / {mean_child:.2f} / {max_child}")
         if len(self.cut_count) > 0:
-            print(
-                f"Cut count : {min(self.cut_count)} / {
-                    sum(self.cut_count) / len(self.cut_count):.2f} / {
-                    max(self.cut_count)
-                }"
-            )
+            min_cut = min(self.cut_count)
+            mean_cut = sum(self.cut_count) / len(self.cut_count)
+            max_cut = max(self.cut_count)
+            print(f"Cut count : {min_cut} / {mean_cut:.2f} / {max_cut}")
         if len(self.cut_points) > 0:
-            print(
-                f"Cut points : {min(self.cut_points)} / {
-                    sum(self.cut_points) / len(self.cut_points):.2f} / {
-                    max(self.cut_points)
-                }"
-            )
+            min_cut = min(self.cut_points)
+            mean_cut = sum(self.cut_points) / len(self.cut_points)
+            max_cut = max(self.cut_points)
+            print(f"Cut points : {min_cut} / {mean_cut:.2f} / {max_cut}")
         if len(self.atoms_count) > 0:
-            print(
-                f"Atoms count : {min(self.atoms_count)} / {
-                    sum(self.atoms_count) / len(self.atoms_count):.2f} / {
-                    max(self.atoms_count)
-                }"
-            )
+            min_atoms = min(self.atoms_count)
+            mean_atoms = sum(self.atoms_count) / len(self.atoms_count)
+            max_atoms = max(self.atoms_count)
+            print(f"Atoms count : {min_atoms} / {mean_atoms:.2f} / {max_atoms}")
         print(f"Cut time: {str(self.cut_end - self.cut_begin).split('.')[0]}")
         print(f"Function time: {str(self.func_end - self.func_begin).split('.')[0]}")
-        print(f"Graph creation time: {str(ODCGraph.creation_time).split('.')[0]}")
-        print(f"Graph extension time: {str(ODCGraph.total_time).split('.')[0]}")
 
 
 class odc:
