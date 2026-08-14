@@ -127,7 +127,7 @@ class odc:
         self.grapher.createGraphs(bascules)
         self.grapher.runAll(stats)
         self.grapher.runSpectralClustering()
-        for r in self.grapher.results:
-            print(r)
+        # for r in self.grapher.results:
+        #     r.print()
         print("Fin, affichage des statistiques")
         stats.print()

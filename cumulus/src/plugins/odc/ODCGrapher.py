@@ -16,6 +16,7 @@ from datetime import datetime
 import numpy as np
 from coriolis.Hurricane import Instance, Net
 from sklearn.cluster import SpectralClustering
+from sklearn.metrics import silhouette_score
 from sympy import Symbol, S
 
 from .CellInfoCache import CellInfoCache
@@ -265,6 +266,7 @@ class ODCGrapher:
             if graph.function is None or graph.function == S.false:
                 continue
             self.results.append(ODCFunction(graph))
+        self.backup = list(self.results)
         self.clean()  # on supprime tout sauf les résultats
         print("Fusion des fonctions")
         # Affichage des temps
@@ -273,7 +275,8 @@ class ODCGrapher:
         total = (cuts_end - cuts_begin) + (func_end - func_begin)
         print(f"All done in {str(total).split('.')[0]}")
 
-    def spectralClustering(self, k=8):  # TODO: enlever la valeur arbitraire
+    def spectralClustering(self, k=8):  # TODO: trouver un moyen d'évaluer k
+        # OPTI: Look at hMETIS tool for clustering
         N = len(self.results)
         affinity_matrix = np.zeros((N, N))
 
@@ -283,22 +286,48 @@ class ODCGrapher:
                     affinity_matrix[i, j] = 1.0
                 else:
                     affinity_matrix[i, j] = similarity(self.results[i], self.results[j])
-        clustering = SpectralClustering(
-            n_clusters=k,
-            affinity="precomputed",
-            assign_labels="kmeans",
-            random_state=42,
-        )
-        labels = clustering.fit_predict(affinity_matrix)
-        return labels
+        groups = {}
+        scores = {}
+        reverse_scores = {}
+        for k in range(2, len(self.results) // 2):
+            clustering = SpectralClustering(
+                n_clusters=k,
+                affinity="precomputed",
+                assign_labels="kmeans",
+                random_state=42,
+            )
+            labels = clustering.fit_predict(affinity_matrix)
+            distance_matrix = 1.0 - affinity_matrix
+            np.fill_diagonal(distance_matrix, 0.0)  # Sécurité pour éviter les -0.0
+
+            # 2. Calcul du score de silhouette
+            # On précise metric="precomputed"
+            score = silhouette_score(distance_matrix, labels, metric="precomputed")
+            scores[k] = score
+            if score not in reverse_scores:
+                reverse_scores[score] = k # on veut le k le plus petit
+            groups[k] = labels
+        max_score = max(list(scores.values()))
+        min_score = min(list(scores.values()))
+        mean_score = sum(list(scores.values())) / len(scores)
+
+        min_k = reverse_scores[min_score]
+        print(f"scores: {min_score} / {mean_score} / {max_score}")
+        print(f"Optimal k value is {min_k}")
+        print(f"{len(scores)} vs. {len(reverse_scores)}")
+        print("k,score")
+        for k, score in scores.items():
+            print(f"{k},{score}")
+        return (groups[min_k], min_k)
 
     def runSpectralClustering(self):
-        while len(self.results) > 1:  # TODO: Trouver une condition d'arrêt
+        # TODO: Trouver une condition d'arrêt
+        # En gros le débat pour la condition d'arrêt c'est qu'il semblerait qu'on ne fasse
+        # du clustering que sur un niveau dans le papier. Ce serait intéressant de regarder
+        # comment ça se comporte lorsqu'on fait un arbre de clusters.
+        while len(self.results) > 1:
             print(len(self.results))
-            groups = self.spectralClustering(
-                8 if ((len(self.results) // 2) > 8) else (len(self.results) // 2)
-            )
-            print(groups)
+            groups, score = self.spectralClustering()
             new_results = []
             group_indexes = {}
             for index, g in enumerate(groups):
@@ -311,3 +340,8 @@ class ODCGrapher:
                     new_results.append(ODCFunctionGroup())
                 new_results[group_index].append(self.results[index])
             self.results = new_results
+            break
+            # la recherche de k optimal rend l'itération ici inutile.
+
+    def reset_results(self):
+        self.results = list(self.backup)
