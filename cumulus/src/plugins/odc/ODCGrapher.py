@@ -4,7 +4,7 @@
 # +-----------------------------------------------------------------+
 # |                   C O R I O L I S                               |
 # |      C u m u l u s  -  P y t h o n   T o o l s                  |
-# |                     |
+# |                                                                 |
 # |  Author      :                              Hippolyte MELICA    |
 # |  E-mail      :   hippolyte.melica@etu.sorbonne-universite.fr    |
 # | =============================================================== |
