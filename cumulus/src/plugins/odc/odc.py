@@ -13,10 +13,8 @@
 
 from coriolis.Hurricane import Cell
 from sympy import S
-from datetime import datetime
 
 from .CellInfoCache import CellInfoCache
-from .ODCGraph import ODCGraph
 from .ODCGrapher import ODCGrapher
 
 
@@ -128,6 +126,8 @@ class odc:
                 bascules.append(instance)
         self.grapher.createGraphs(bascules)
         self.grapher.runAll(stats)
-        print(self.grapher.spectralClustering())
+        self.grapher.runSpectralClustering()
+        for r in self.grapher.results:
+            print(r)
         print("Fin, affichage des statistiques")
         stats.print()

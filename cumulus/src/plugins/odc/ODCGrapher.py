@@ -20,7 +20,7 @@ from sympy import Symbol, S
 
 from .CellInfoCache import CellInfoCache
 from .HurricaneAsGraph import getChildren, getParents
-from .ODCFunction import ODCFunction, similarity
+from .ODCFunction import ODCFunction, ODCFunctionGroup, similarity
 
 
 def getSymbolsMap(instance):
@@ -273,7 +273,7 @@ class ODCGrapher:
         total = (cuts_end - cuts_begin) + (func_end - func_begin)
         print(f"All done in {str(total).split('.')[0]}")
 
-    def spectralClustering(self):
+    def spectralClustering(self, k=8):  # TODO: enlever la valeur arbitraire
         N = len(self.results)
         affinity_matrix = np.zeros((N, N))
 
@@ -283,7 +283,6 @@ class ODCGrapher:
                     affinity_matrix[i, j] = 1.0
                 else:
                     affinity_matrix[i, j] = similarity(self.results[i], self.results[j])
-        k = 8  # TODO: déterminer la valeur qui va bien...
         clustering = SpectralClustering(
             n_clusters=k,
             affinity="precomputed",
@@ -292,3 +291,23 @@ class ODCGrapher:
         )
         labels = clustering.fit_predict(affinity_matrix)
         return labels
+
+    def runSpectralClustering(self):
+        while len(self.results) > 1:  # TODO: Trouver une condition d'arrêt
+            print(len(self.results))
+            groups = self.spectralClustering(
+                8 if ((len(self.results) // 2) > 8) else (len(self.results) // 2)
+            )
+            print(groups)
+            new_results = []
+            group_indexes = {}
+            for index, g in enumerate(groups):
+                group_index = None
+                try:
+                    group_index = group_indexes[g]
+                except KeyError:
+                    group_index = len(new_results)
+                    group_indexes[g] = group_index
+                    new_results.append(ODCFunctionGroup())
+                new_results[group_index].append(self.results[index])
+            self.results = new_results

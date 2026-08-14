@@ -49,3 +49,40 @@ class ODCFunction:
         self.instance = graph.top.link.instance  # because we don't use graph anymore
         self.function = graph.function
         self.bdd = BDDSymPyUtil(self.function)
+
+    def print(self, index=0, nl=False):
+        print(index, end=" " if not nl else "\n")
+        if index == 0:
+            print(f"{index}: {self.function}")
+        return [(index, self.function)]
+
+
+class ODCFunctionGroup:
+    def __init__(self):
+        self.function = None
+        self.bdd = None
+        self.members = []
+
+    def append(self, function: ODCFunction):
+        import sympy as sp
+
+        self.members.append(function)
+        # TODO: Il faut absolument implémenter une meilleure simplification
+        self.function = (
+            sp.simplify(sp.And(self.function, function.function))
+            if self.function is not None
+            else function.function
+        )
+        self.bdd = BDDSymPyUtil(self.function)
+
+    def print(self, index=0, nl=True):
+        first = index == 0
+        to_print = []
+        print(index, end=" " if not nl else "\n")
+        for index, member in enumerate(self.members):
+            ret = member.print(index + 1, index == len(self.members) - 1)
+            index += len(ret)
+            to_print.extend(ret)
+        if first:
+            for index, function in to_print:
+                print(f"{index}: {function}")
